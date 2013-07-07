@@ -37,35 +37,25 @@ public class CogApp extends PApplet {
 		size(1000,1000, P3D);
 		RG.init(this);
 		gear1 = new GearShape(this);
-		gear1.setSinusoidalProfile(100, 50, 2, 1000);
+		gear1.setSinusoidalProfile(200, 50, 2, 1000);
 		
 		radii = gear1.getRadii();
 		points = gear1.getPoints();
 		numAngles = radii.size();
-		cutter = new Cutter(gear1.getShape().getCurveLength(), 10, 3, 5, 100, this);
+		cutter = new Cutter(gear1.getShape().getCurveLength(), 10, 7, 7, 100, this);
 		cutShape = cutter.getShape();
 		cutterRadius = cutter.getRadius();
 		angles = gear1.getAngles();
-		//frameRate(5);
-	}
-	
-	public void draw4(){
-		background(Color.WHITE.getRGB());
-		translate(width/2,height/2);
-		RG.shape(cutShape);
+
 	}
 	
 	
-	public void draw() {
-		background(Color.WHITE.getRGB());
-		translate(width/2,height/2);
-	
+	private void animateCut(int loop) {
 		RPoint p = points.get(loop);
 		RPoint norm = gear1.getNorms().get(loop);
 		RPoint scaledNorm = new RPoint(norm);
 		scaledNorm.scale(cutterRadius);
 
-		//line(0,0,p.x,p.y);
 		
 		//translate the cutter.
 		RPoint cutterOrigin = new RPoint(p);
@@ -95,19 +85,21 @@ public class CogApp extends PApplet {
 			int angleIndx = gear1.getRadialIndx(angleFromOrigin);
 			radii.set(angleIndx, Math.min(radii.get(angleIndx), distFromOrigin));
 		}
-
-		gear1.draw(0, 0);
-		//cutter.draw();
-		RG.shape(cutShape);
-		//ellipse(cutterOrigin.0, cutter)
-
+		
 		prevPoint = p;
 		prevCutterOrigin = cutterOrigin;
-		loop ++;
-		
-		if (loop > numAngles) {
-			noLoop();
-		}
+		cutter.draw();
+	}
+	
+	public void draw() {
+		background(Color.WHITE.getRGB());
+		translate(width/2,height/2);
+		gear1.draw(0, 0);
+		if (loop < numAngles) {
+			animateCut(loop);
+			loop ++;
+		} 
+
 		
 		
 		
