@@ -1,25 +1,17 @@
-import geomerative.RG;
-import geomerative.RPoint;
-import geomerative.RPolygon;
-import geomerative.RShape;
-
-import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-
-import processing.core.PApplet;
-import static processing.core.PApplet.pow;
-import static processing.core.PApplet.sqrt;
 import static processing.core.PApplet.cos;
 import static processing.core.PApplet.sin;
-import static processing.core.PApplet.PI;
+import static processing.core.PConstants.PI;
+import geomerative.RPoint;
+import geomerative.RShape;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import processing.core.PApplet;
 
 /*** This class represents a drawable non-linear gear. ***/
 public class GearShape {
-	//private List<Double> radialFunction;
-//	private List<Double> angles;
+
 	private PApplet app;
 	private float centerRadius = 10;
 	private int angleIndxResolution = 10000;
@@ -179,12 +171,6 @@ public class GearShape {
 		return angles;
 	}
 	
-
-	
-	
-
-	
-
 	
 	/*** Draw the gear centered at the specified point. ***/
 	public void draw(float x, float y){
