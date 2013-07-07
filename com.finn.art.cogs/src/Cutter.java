@@ -43,7 +43,8 @@ public class Cutter {
 	
 	public void draw() {
 		RG.shape(shape);
-		app.ellipse(0,0,radius*2,radius*2);
+		RPoint centroid = shape.getCentroid();
+		app.ellipse(centroid.x,centroid.y,radius*2,radius*2);
 	}
 
 }

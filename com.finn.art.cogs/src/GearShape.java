@@ -191,10 +191,10 @@ public class GearShape {
 		app.pushMatrix();
 		app.translate(x, y);
 		
-		RG.shape(shape,0,0);
+		//RG.shape(shape,0,0);
 		app.ellipse(0,0,centerRadius,centerRadius);
 		
-		app.stroke(Color.RED.getRGB());
+		
 		int numAngles = getNumAngles();
 		float r = radii.get(0);
 		float theta = angles.get(0);
@@ -210,7 +210,7 @@ public class GearShape {
 			yLast = ynew;
 			
 		}
-		app.stroke(Color.BLACK.getRGB());
+		app.line(xLast,yLast,r,0);
 		
 		app.popMatrix();
 	}
