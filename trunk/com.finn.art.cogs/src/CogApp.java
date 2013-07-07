@@ -11,7 +11,6 @@ import processing.core.PApplet;
 
 public class CogApp extends PApplet {
 	GearShape gear1; 
-	ConjugateGear conjugate; 
 	GearShape gear2;
 	boolean record;
 	
@@ -28,7 +27,8 @@ public class CogApp extends PApplet {
 	RShape cutShape;
 	int numCutterAngles = 1000;
 	int loop = 0;
-	RPoint xAxis = new RPoint(1,0);
+	ConjugateGear conjugate = null;
+	
 	
 	
 
@@ -98,7 +98,19 @@ public class CogApp extends PApplet {
 		if (loop < numAngles) {
 			animateCut(loop);
 			loop ++;
-		} 
+		} else if (conjugate == null){
+			conjugate = new ConjugateGear(gear1.getRadii(), 0.00001);
+			gear2 = new GearShape(this);
+			gear2.setProfile(conjugate.getRadialFunction(),conjugate.getMovementFunction());
+			
+			
+			
+		} else {
+			gear2.draw(conjugate.getGearSeparation(), 0);
+			noLoop(); //here we want to simulate the gears moving ...
+			
+		}
+		
 
 		
 		

@@ -40,35 +40,42 @@ public class GearShape {
 		setProfile(radialFunction,angles);
 	}
 	
+	/*** Creates an RShape based on the input radii at the specified angles. ***/
+	private RShape buildShape(List<Float> radialFunction, List<Float> angles) {
+		RShape result = new RShape();
+		if (radialFunction.size() > 0) {
+			float r = radialFunction.get(0);
+			float theta = angles.get(0);
+			result.addMoveTo(r*cos(theta), r*sin(theta));
+			for (int i = 1; i < angles.size(); i++) {
+				r = radialFunction.get(i);
+				theta = angles.get(i);
+				result.addLineTo(r*cos(theta),r*sin(theta));
+			}
+			result.addClose();
+		}
+		return result;
+	}
+	
+	
 	
 	/*** set the profile of the gear. ***/
 	public void setProfile(List<Float> radialFunction, List<Float> angles) {
 		if (radialFunction.size() != angles.size()) {
 			throw new IllegalArgumentException("number of angles must match number of radii");
 		}
-		//this.radii = radialFunction;
-		//this.angles = angles;
+		
 		this.points = new ArrayList<RPoint>(angles.size());
 		this.norms = new ArrayList<RPoint>(angles.size());
 		this.angles = new ArrayList<Float>(angles.size());
 		this.radii = new ArrayList<Float>(angles.size());
-		this.shape = new RShape();
 		
-		if (radialFunction.size() > 0) {
-			float r = radialFunction.get(0);
-			float theta = angles.get(0);
-			shape.addMoveTo(r*cos(theta), r*sin(theta));
-			for (int i = 1; i < angles.size(); i++) {
-				r = radialFunction.get(i);
-				theta = angles.get(i);
-				shape.addLineTo(r*cos(theta),r*sin(theta));
-			}
-			shape.addClose();
-		}
+		this.shape = buildShape(radialFunction, angles);
+		
+		
 		// now using the shape we have created we pre-calculate the points and tangents, radii and angles.
 		// this will also resample the points so that the points are equally distributed by arc-length (NOT angle)
 		int npoints = angles.size();
-		RPoint xAxis = new RPoint(1,0);
 		for (int i = 0; i < npoints; i ++) {
 			float adv = i/(float)npoints;
 			RPoint tangent = shape.getTangent(adv);
@@ -115,6 +122,28 @@ public class GearShape {
 		return angleIndx[(Math.round(angle*angleIndx.length/(2*PI))+angleIndx.length)%angleIndx.length];
 	}
 	
+	public void resampleAtEqualAngles(int numPoints){
+		RShape resampled = new RShape();
+		List<Float> newAngles = new ArrayList<Float>();
+		List<Float> newRadii = new ArrayList<Float>();
+		List<RPoint> norms = new ArrayList<RPoint>();
+		List<RPoint> newPoints = new ArrayList<RPoint>();
+		float dtheta = 2*PI/numPoints;
+		float adv = 0;
+		float theta = 0;
+		for (int i = 0; i < numPoints; i ++) {
+			float r = radii.get(i);
+			float ds = r*dtheta;
+			adv += ds;
+			RPoint p = shape.getPoint(adv);
+			resampled.addLineTo(p);
+			
+			
+		}
+		
+		testEquivelence();
+	}
+	
 	
 	/*** Create a circular gear modified by a sin wave. 
 	 * The radial function is of the form R = A + B*sin(C*t). 
@@ -133,7 +162,6 @@ public class GearShape {
 		}
 		setProfile(points, angles);
 	}
-	
 	
 	/*** Create the gear used as an example in various papers by B. Laczic. Used for testing purposes. ***/
 	public void setLaczikGearProfile(int nPoints, float scale) {
