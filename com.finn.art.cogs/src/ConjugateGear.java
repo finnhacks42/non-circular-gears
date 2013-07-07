@@ -13,23 +13,28 @@ public class ConjugateGear {
 	
 
 	/*** create a Conjugate gear to the input gear.
-	 * @param gear1RadialFunction A list of doubles specifying the radius of the driving gear at evenly spaced intervals from 0 to 2PI
+	 * @param gear1RadialFunction A list of doubles specifying the radius of the driving gear at angles specified by @param angles
 	 * @param tolerance a double indicating the tolerance the gear must be produced to. 
 	 * The lower this value the greater the accuracy but the longer the gear will take to create. ***/
-	public ConjugateGear(List<Float> gear1RadialFunction, double tolerance) {
-		calculate(gear1RadialFunction,tolerance);
+	public ConjugateGear(List<Float> gear1RadialFunction, List<Float> angles ,double tolerance) {
+		calculate(gear1RadialFunction,angles, tolerance);
 	}
 	
 	/*** This function generates a function representing the integral of the input radial function. 
 	 * The results are stored in the input result array. ***/
-	private static void calculateMovementFunction(List<Float> transferFunction, List<Float> resultArray){
+	private static void calculateMovementFunction(List<Float> transferFunction, List<Float> angles,List<Float> resultArray){
 		int nSteps = transferFunction.size();
-		double stepSize = 2*Math.PI/((double)nSteps);
+		//double stepSize = 2*Math.PI/((double)nSteps); //TODO allow this step size to vary since angles may not always be equal ...
 		float total = 0f;
 		int indx = 0;
-		for (double radius: transferFunction) {
+		float dtheta = 0;
+		float thetaPrev = angles.get(0);
+		for (float radius: transferFunction) {
+			float theta = angles.get(indx);
+			dtheta = theta - thetaPrev;
+			total += radius*dtheta;
 			resultArray.set(indx, total);
-			total += radius*stepSize;
+			thetaPrev = theta;
 			indx ++;
 		}	
 	}
@@ -44,7 +49,7 @@ public class ConjugateGear {
 	}
 
 	/*** This function calculates the gear separation, movement function and conjugate gear radial function for the input radial gear function. ***/
-	public void calculate(List<Float> gear1RadialFunction, double tolerance) {
+	public void calculate(List<Float> gear1RadialFunction, List<Float> angles, double tolerance) {
 		int nSteps = gear1RadialFunction.size();
 		transferFunction = createZeroedArray(nSteps);
 		movementFunction = createZeroedArray(nSteps);
@@ -59,7 +64,7 @@ public class ConjugateGear {
 		
 		while (Math.abs(difference) > tolerance) {
 			calculateTransferFunction(gear1RadialFunction, gearSeparation, transferFunction);
-			calculateMovementFunction(transferFunction, movementFunction);
+			calculateMovementFunction(transferFunction, angles, movementFunction);
 			double phiMax = movementFunction.get(movementFunction.size() - 1);
 			difference = phiMax - Math.PI*2;
 			if (difference > 0) { //phiMax is too large -> gear separation is too small

@@ -10,24 +10,31 @@ import processing.core.PApplet;
 
 
 public class CogApp extends PApplet {
-	GearShape gear1; 
-	GearShape gear2;
-	boolean record;
+	private GearShape gear1; 
+	private GearShape gear2;
+	private boolean record;
 	
-	List<Float> radii;
-	List<RPoint> points;
-	List<Float> angles;
-	int numAngles;
-	RPoint origin = new RPoint(0,0);
-	RPoint prevPoint = null;
-	RPoint prevCutterOrigin = new RPoint(0,0);
-	float cutterAngle = 0;
-	float cutterRadius = 0f;
-	Cutter cutter;
-	RShape cutShape;
-	int numCutterAngles = 1000;
-	int loop = 0;
-	ConjugateGear conjugate = null;
+	private List<Float> radii;
+	private List<RPoint> points;
+	private List<Float> angles;
+	private int numAngles;
+	private float gear1Angle = 0;
+
+	private RPoint prevPoint = null;
+	private RPoint prevCutterOrigin = new RPoint(0,0);
+	//private float cutterRadius = 0f;
+
+	private Cutter cutter;
+	private RShape cutShape;
+	private int numCutterAngles = 1000;
+	private int loop = 0;
+	
+	private ConjugateGear conjugate = null;
+	private List<Float> movementFunc;
+	private float gear2Angle = 0;
+	
+	
+
 	
 	
 	
@@ -37,14 +44,13 @@ public class CogApp extends PApplet {
 		size(1000,1000, P3D);
 		RG.init(this);
 		gear1 = new GearShape(this);
-		gear1.setSinusoidalProfile(200, 50, 2, 1000);
-		
+		gear1.setSinusoidalProfile(200, 80, 2, 500);
+		//gear1.setNonSymetricProfile(1000, 100, 30);
 		radii = gear1.getRadii();
 		points = gear1.getPoints();
 		numAngles = radii.size();
-		cutter = new Cutter(gear1.getShape().getCurveLength(), 10, 7, 7, 100, this);
+		cutter = new Cutter(gear1.getShape().getCurveLength(), 10, 3, 7, 100, this);
 		cutShape = cutter.getShape();
-		cutterRadius = cutter.getRadius();
 		angles = gear1.getAngles();
 
 	}
@@ -54,7 +60,7 @@ public class CogApp extends PApplet {
 		RPoint p = points.get(loop);
 		RPoint norm = gear1.getNorms().get(loop);
 		RPoint scaledNorm = new RPoint(norm);
-		scaledNorm.scale(cutterRadius);
+		scaledNorm.scale(cutter.getRadius());
 
 		
 		//translate the cutter.
@@ -68,9 +74,9 @@ public class CogApp extends PApplet {
 
 		if (prevPoint != null) {
 			float dist = p.dist(prevPoint);
-			cutterAngle += dist/(float)cutterRadius;
+			
 			//actually rotate the cutter here ...	
-			cutShape.rotate(dist/(float)cutterRadius,cutterOrigin);
+			cutShape.rotate(dist/(float)cutter.getRadius(),cutterOrigin);
 		}
 
 		for (int j = 0; j < numCutterAngles; j ++) {
@@ -89,25 +95,37 @@ public class CogApp extends PApplet {
 		prevPoint = p;
 		prevCutterOrigin = cutterOrigin;
 		cutter.draw();
+		gear1.drawRadiiFunction();
 	}
 	
 	public void draw() {
 		background(Color.WHITE.getRGB());
-		translate(width/2,height/2);
-		gear1.draw(0, 0);
+		translate(width/4,height/2);
+		
 		if (loop < numAngles) {
 			animateCut(loop);
 			loop ++;
 		} else if (conjugate == null){
-			conjugate = new ConjugateGear(gear1.getRadii(), 0.00001);
+			System.out.println("Calculating conjugate");
+			gear1.setProfile(gear1.getRadii(),gear1.getAngles()); //reset the state of gear1 using its updated radii.
+			conjugate = new ConjugateGear(gear1.getRadii(),gear1.getAngles(), 0.00001);
+			movementFunc = conjugate.getMovementFunction();
 			gear2 = new GearShape(this);
 			gear2.setProfile(conjugate.getRadialFunction(),conjugate.getMovementFunction());
-			
-			
+			gear2.flip();
+			gear2.translate(conjugate.getGearSeparation(), 0);
+			//gear1.allignWithAxis();
+			gear2.draw();
+			System.out.println("Conjugate calculated!");
 			
 		} else {
-			gear2.draw(conjugate.getGearSeparation(), 0);
-			noLoop(); //here we want to simulate the gears moving ...
+			gear1.draw();
+			gear2.draw();
+			
+			
+			//gear1.rotate(PI/600f);
+			//gear2.rotate(-PI/600f);
+			
 			
 		}
 		
@@ -115,6 +133,14 @@ public class CogApp extends PApplet {
 		
 		
 		
+	}
+	
+	/*** record the data to a dxf file if r is pressed. ***/
+	public void keyPressed() {
+		  if (key == 'r') {
+		  	record = true;
+		  }
+		  
 	}
 	
 	
@@ -179,13 +205,7 @@ public class CogApp extends PApplet {
 //	}
 	
 	
-	/*** record the data to a dxf file if r is pressed. ***/
-	public void keyPressed() {
-		  if (key == 'r') {
-		  	record = true;
-		  }
-	}
-	
+
 
 	 public static void main(String args[]) {
 		    PApplet.main(new String[] { "--present", "CogsApplet" });

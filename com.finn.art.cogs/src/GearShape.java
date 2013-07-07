@@ -1,11 +1,16 @@
 import static processing.core.PApplet.cos;
 import static processing.core.PApplet.sin;
 import static processing.core.PConstants.PI;
+import geomerative.RG;
+import geomerative.RMatrix;
 import geomerative.RPoint;
 import geomerative.RShape;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+
+
 
 import processing.core.PApplet;
 
@@ -22,6 +27,9 @@ public class GearShape {
 	private List<RPoint> points; //this duplicates infomation held by radii and angle but makes calculations quicker.
 	private RShape shape; 
 	private int[] angleIndx;
+	private float x = 0;
+	private float y = 0;
+
 
 	
 	/*** Create a new gear with the specified radial points at the corresponding angles.
@@ -57,7 +65,36 @@ public class GearShape {
 		return result;
 	}
 	
-	
+	/*** From a shape, pre-calculate lists of points, radii, angles and norms. 
+	 * The points are sampled at equal points along the arc of the shape NOT at equal angles. 
+	 * @param shape the shape to sample
+	 * @param nPoints the number of points to sample from the shape
+	 */
+	private void resampleDataFromShape(RShape shape, int nPoints){
+		this.points = new ArrayList<RPoint>(nPoints);
+		this.norms = new ArrayList<RPoint>(nPoints);
+		this.angles = new ArrayList<Float>(nPoints);
+		this.radii = new ArrayList<Float>(nPoints);
+
+		for (int i = 0; i < nPoints; i ++) {
+			float adv = i/(float)nPoints;
+			RPoint tangent = shape.getTangent(adv);
+			RPoint norm = Vector.getUnitNorm(tangent);
+			RPoint point = shape.getPoint(adv);
+			//float angle = point.angle(xAxis);
+			float angle = (float) Math.atan2(point.y,point.x);
+			if (angle < 0) {angle += 2*PI;}
+
+			float radius = point.norm();
+			this.angles.add(angle);
+			radii.add(radius);
+			points.add(point);
+			norms.add(norm);
+		}
+
+		buildAngleIndx(angleIndxResolution);
+		testEquivelence();
+	}
 	
 	/*** set the profile of the gear. ***/
 	public void setProfile(List<Float> radialFunction, List<Float> angles) {
@@ -65,36 +102,8 @@ public class GearShape {
 			throw new IllegalArgumentException("number of angles must match number of radii");
 		}
 		
-		this.points = new ArrayList<RPoint>(angles.size());
-		this.norms = new ArrayList<RPoint>(angles.size());
-		this.angles = new ArrayList<Float>(angles.size());
-		this.radii = new ArrayList<Float>(angles.size());
-		
 		this.shape = buildShape(radialFunction, angles);
-		
-		
-		// now using the shape we have created we pre-calculate the points and tangents, radii and angles.
-		// this will also resample the points so that the points are equally distributed by arc-length (NOT angle)
-		int npoints = angles.size();
-		for (int i = 0; i < npoints; i ++) {
-			float adv = i/(float)npoints;
-			RPoint tangent = shape.getTangent(adv);
-			RPoint norm = Vector.getUnitNorm(tangent);
-			RPoint point = shape.getPoint(adv);
-			//float angle = point.angle(xAxis);
-			float angle = (float) Math.atan2(point.y,point.x);
-			if (angle < 0) {angle += 2*PI;}
-			
-			float radius = point.norm();
-			this.angles.add(angle);
-			radii.add(radius);
-			points.add(point);
-			norms.add(norm);
-		}
-		
-		
-		buildAngleIndx(angleIndxResolution);
-		testEquivelence();
+		resampleDataFromShape(shape, angles.size());
 	}
 	
 	private void buildAngleIndx(int numSteps) {
@@ -120,28 +129,6 @@ public class GearShape {
 	
 	public int getRadialIndx(float angle) {
 		return angleIndx[(Math.round(angle*angleIndx.length/(2*PI))+angleIndx.length)%angleIndx.length];
-	}
-	
-	public void resampleAtEqualAngles(int numPoints){
-		RShape resampled = new RShape();
-		List<Float> newAngles = new ArrayList<Float>();
-		List<Float> newRadii = new ArrayList<Float>();
-		List<RPoint> norms = new ArrayList<RPoint>();
-		List<RPoint> newPoints = new ArrayList<RPoint>();
-		float dtheta = 2*PI/numPoints;
-		float adv = 0;
-		float theta = 0;
-		for (int i = 0; i < numPoints; i ++) {
-			float r = radii.get(i);
-			float ds = r*dtheta;
-			adv += ds;
-			RPoint p = shape.getPoint(adv);
-			resampled.addLineTo(p);
-			
-			
-		}
-		
-		testEquivelence();
 	}
 	
 	
@@ -179,6 +166,19 @@ public class GearShape {
 		setProfile(points, angles);
 	}
 	
+	public void setNonSymetricProfile(int nPoints, float r, float r2) {
+		List<Float> angles = Vector.createEvenAngles(nPoints);
+		List<Float> radii = new ArrayList<Float>(nPoints);
+		for (float angle: angles) {
+			if (angle < PI) {
+				radii.add(r);
+			} else {
+				radii.add(r+r2*sin(3*angle));
+			}
+		}
+		setProfile(radii, angles);
+	}
+
 	public int getNumAngles(){
 		return radii.size();
 	}
@@ -200,15 +200,49 @@ public class GearShape {
 	}
 	
 	
+	/*** rotate the gear about its center. ***/
+	public void rotate(float theta) {
+		shape.rotate(theta,x,y);
+		
+	}
+	
+	public void translate(float dx, float dy){
+		x += dx;
+		y += dy;
+		shape.translate(dx, dy);
+	}
+	
+	/*** reflect the gear over the y-axis. Apply before translation. ***/
+	public void flip(){
+		RMatrix trans = new RMatrix(-1f, 0, 0, 0, 1, 0);
+		shape.transform(trans);
+	}
+	
 	/*** Draw the gear centered at the specified point. ***/
-	public void draw(float x, float y){
-		app.pushMatrix();
-		app.translate(x, y);
-		
-		//RG.shape(shape,0,0);
-		app.ellipse(0,0,centerRadius,centerRadius);
+	public void draw(){
+		RG.shape(shape);
+		app.ellipse(x,y,centerRadius,centerRadius);	
 		
 		
+	}
+	
+	public void allignWithAxis(){
+		float rmin = Float.MAX_VALUE;
+		int minIndx = -1;
+		for (int i = 0 ; i < getNumAngles(); i ++) {
+			float r = radii.get(i);
+			if (r < rmin) {
+				minIndx = i;
+				rmin = r;
+			}
+		}
+		float thetaMin = angles.get(minIndx);
+		this.rotate(-thetaMin);
+	}
+	
+	
+	public void drawRadiiFunction(){
+		app.stroke(Color.red.getRGB());
 		int numAngles = getNumAngles();
 		float r = radii.get(0);
 		float theta = angles.get(0);
@@ -225,9 +259,9 @@ public class GearShape {
 			
 		}
 		app.line(xLast,yLast,r,0);
-		
-		app.popMatrix();
+		app.stroke(Color.BLACK.getRGB());
 	}
+	
 	
 	
 	public float getCenterRadius() {
@@ -262,6 +296,8 @@ public class GearShape {
 			}
 		}
 	}
+	
+	
 	
 //	/*** set the gear to rotate. ***/
 //	public void rotate(double speed){
