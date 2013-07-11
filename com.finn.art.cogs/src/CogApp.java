@@ -3,6 +3,7 @@ import geomerative.RPoint;
 import geomerative.RShape;
 
 import java.awt.Color;
+import java.io.File;
 import java.util.List;
 
 import processing.core.PApplet;
@@ -10,6 +11,12 @@ import processing.core.PApplet;
 
 
 public class CogApp extends PApplet {
+	private static final int STATE_CUT = 0;
+	private static final int STATE_CONJUGATE = 1;
+	private static final int STATE_SIMULATE = 2;
+	
+	private int state = STATE_CONJUGATE;
+	
 	private GearShape gear1; 
 	private GearShape gear2;
 	private boolean record;
@@ -22,10 +29,7 @@ public class CogApp extends PApplet {
 
 	private RPoint prevPoint = null;
 	private RPoint prevCutterOrigin = new RPoint(0,0);
-	//private float cutterRadius = 0f;
-
 	private Cutter cutter;
-	private RShape cutShape;
 	private int numCutterAngles = 1000;
 	private int loop = 0;
 	
@@ -33,10 +37,7 @@ public class CogApp extends PApplet {
 	private List<Float> movementFunc;
 	private float gear2Angle = 0;
 	
-	
-
-	
-	
+	private RShape xAxis;
 	
 
 	@Override
@@ -44,16 +45,23 @@ public class CogApp extends PApplet {
 		size(1000,1000, P3D);
 		RG.init(this);
 		gear1 = new GearShape(this);
-		gear1.setSinusoidalProfile(200, 80, 2, 500);
-		//gear1.setNonSymetricProfile(1000, 100, 30);
+		//gear1.setSinusoidalProfile(200, 80, 5, 1000);
+		gear1.setNonSymetricProfile(1000, 100, 30);
+		//gear1.setProfile(new File("/home/finn/programming/hacking/non_circ_gears/start1.svg"), 100);
 		radii = gear1.getRadii();
 		points = gear1.getPoints();
 		numAngles = radii.size();
-		cutter = new Cutter(gear1.getShape().getCurveLength(), 10, 3, 7, 100, this);
-		cutShape = cutter.getShape();
+		cutter = new Cutter(gear1.getShape().getCurveLength(), 30, 3, 15, 1000, this);
 		angles = gear1.getAngles();
+		gear1.cutTeeth();
+		
+		xAxis = new RShape();
+		xAxis.addMoveTo(-1000,0);
+		xAxis.addLineTo(1000,0);
 
 	}
+	
+	
 	
 	
 	private void animateCut(int loop) {
@@ -61,27 +69,25 @@ public class CogApp extends PApplet {
 		RPoint norm = gear1.getNorms().get(loop);
 		RPoint scaledNorm = new RPoint(norm);
 		scaledNorm.scale(cutter.getRadius());
-
 		
 		//translate the cutter.
 		RPoint cutterOrigin = new RPoint(p);
 		cutterOrigin.add(scaledNorm);
 		RPoint trans = new RPoint(cutterOrigin);
 		trans.sub(prevCutterOrigin);
-		cutShape.translate(trans);
+		cutter.getShape().translate(trans);
 		
 		line(0,0,cutterOrigin.x,cutterOrigin.y);
 
 		if (prevPoint != null) {
 			float dist = p.dist(prevPoint);
-			
 			//actually rotate the cutter here ...	
-			cutShape.rotate(dist/(float)cutter.getRadius(),cutterOrigin);
+			cutter.getShape().rotate(dist/(float)cutter.getRadius(),cutterOrigin);
 		}
 
 		for (int j = 0; j < numCutterAngles; j ++) {
 			float adv = j/(float)numCutterAngles;
-			RPoint cutterPoint = cutShape.getPoint(adv);
+			RPoint cutterPoint = cutter.getShape().getPoint(adv);
 			float angleFromOrigin = atan2(cutterPoint.y,cutterPoint.x);
 			if (angleFromOrigin < 0) {
 				angleFromOrigin += 2*PI;
@@ -98,14 +104,21 @@ public class CogApp extends PApplet {
 		gear1.drawRadiiFunction();
 	}
 	
+	
+	
 	public void draw() {
 		background(Color.WHITE.getRGB());
 		translate(width/4,height/2);
 		
-		if (loop < numAngles) {
+		switch (state) {
+		case STATE_CUT:
 			animateCut(loop);
 			loop ++;
-		} else if (conjugate == null){
+			if (loop == numAngles - 1) {
+				state = STATE_CONJUGATE;
+			}
+			break;
+		case STATE_CONJUGATE:
 			System.out.println("Calculating conjugate");
 			gear1.setProfile(gear1.getRadii(),gear1.getAngles()); //reset the state of gear1 using its updated radii.
 			conjugate = new ConjugateGear(gear1.getRadii(),gear1.getAngles(), 0.00001);
@@ -117,21 +130,47 @@ public class CogApp extends PApplet {
 			//gear1.allignWithAxis();
 			gear2.draw();
 			System.out.println("Conjugate calculated!");
+			loop = 0;
+			state = STATE_SIMULATE;
+			break;
+		case STATE_SIMULATE:
 			
-		} else {
-			gear1.draw();
-			gear2.draw();
+//			float dtheta = 2*PI/numAngles;//angles.get(loop) - gear1Angle;
+//			float dphi = movementFunc.get(loop) - gear2Angle;
+			//System.out.println(loop+","+dtheta+","+dphi);
 			
+//			gear1.rotate(dtheta);
+//			gear2.rotate(-dphi);
+//			loop = (loop+1)%numAngles;
+//			gear1Angle += dtheta;
+//			gear2Angle += dphi;
 			
-			//gear1.rotate(PI/600f);
-			//gear2.rotate(-PI/600f);
+			 if (record) {
+				    beginRaw(DXF, "/home/finn/programming/hacking/non_circ_gears/output.dxf");
+				    gear1.draw();
+					gear2.translate(30, 0);
+					gear2.draw();
+					ellipse(0,300,20,20);
+					ellipse(conjugate.getGearSeparation(),300,20,20);
+				    endRaw();
+				    record = false;
+				    System.out.println("DXF written");
+				    noLoop();
+			 }
+			 
+			 gear1.draw();
+			 gear2.draw();
 			
-			
-		}
-		
+			if (record) {
+				
+			}
 
-		
-		
+			
+			break;
+		default:
+			throw new IllegalStateException("Unexpected fall through to default state");
+		}
+			
 		
 	}
 	
@@ -144,69 +183,6 @@ public class CogApp extends PApplet {
 	}
 	
 	
-//	public void draw3() {
-//		
-//		 if (record) {
-//			    beginRaw(DXF, "/home/finn/programming/hacking/non_circ_gears/output.dxf");
-//		 }
-//		background(Color.WHITE.getRGB());
-//		translate(width/2,height/2);
-//		
-//		distAlongCurve = currentPoint/(float)npoints;
-//		RPoint p = gear1.getShape().getPoint(distAlongCurve);
-//		ds = p.dist(pLast);
-//		RPoint t = gear1.getShape().getTangent(distAlongCurve);
-//		
-//		RPoint norm = Vector.getUnitNorm(t);
-//		norm.scale(r);
-//		
-//		//shift the cutter origin to the new point.
-//		RPoint cutterOriginPrev = cutterOrigin; //this is where the cutter was
-//		
-//		cutterOrigin = new RPoint(p);
-//		cutterOrigin.add(norm); //this is where the cutter is now
-//		
-//		RPoint trans = new RPoint(cutterOrigin);
-//		trans.sub(cutterOriginPrev); //this is the difference
-//		
-//		cutter.translate(trans);
-//		
-//		cutter.rotate(ds/r, cutterOrigin);//
-//		
-//		
-//		gear1.draw(0, 0);
-//		
-//		stroke(Color.RED.getRGB());
-//		RG.shape(cut);
-//		stroke(Color.BLACK.getRGB());
-//		line(0,0,p.x,p.y);
-//		line(p.x,p.y,p.x+norm.x,p.y+norm.y);
-//		line(0,0,cutterOrigin.x,cutterOrigin.y);
-//		//ellipse(cutterOrigin.x,cutterOrigin.y,2*r,2*r);
-//		
-//		cut = subtract(cutter,cut);
-//		RG.shape(cutter);
-//		
-//			
-//		
-//		
-//		currentPoint ++;
-//		pLast = p;
-//			
-//		
-//		 if (record) {
-//			    endRaw();
-//			    record = false;
-//			    System.out.println("DXF written");
-//		 }
-//		 
-//		
-//		//noLoop();
-//	}
-	
-	
-
-
 	 public static void main(String args[]) {
 		    PApplet.main(new String[] { "--present", "CogsApplet" });
 	 }
