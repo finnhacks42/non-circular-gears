@@ -12,6 +12,15 @@ public class Cutter {
 	private float radius;
 	private PApplet app;
 	
+	/*** Create a tooth cutting tool 
+	 * 
+	 * @param curveLength the length of the curve around the gear to be cut
+	 * @param cutToCurveRatio the number of times the cutter should rotate before returning to its start point.
+	 * @param nTeeth the number of teeth on the cutter
+	 * @param toothAmp the amplitude (or length) of the teeth
+	 * @param resolution the resolution of the cutter. 
+	 * @param app
+	 */
 	public Cutter(float curveLength, int cutToCurveRatio, int nTeeth, float toothAmp, int resolution, PApplet app) {
 		this.app = app;
 		radius = curveLength/(2*PI*cutToCurveRatio);

@@ -7,6 +7,7 @@ import geomerative.RPoint;
 import geomerative.RShape;
 
 import java.awt.Color;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,8 +30,6 @@ public class GearShape {
 	private int[] angleIndx;
 	private float x = 0;
 	private float y = 0;
-
-
 	
 	/*** Create a new gear with the specified radial points at the corresponding angles.
 	 * 
@@ -40,6 +39,27 @@ public class GearShape {
 	 */
 	public GearShape(PApplet app) {
 		this.app = app;
+	}
+	
+	/*** set the profile from an svg drawing. ***/
+	public void setProfile(File svgDrawing, int resolution){
+		RShape s = RG.loadShape(svgDrawing.getAbsolutePath());
+		RPoint center = s.getCenter();
+		s.translate(-center.x,-center.y);
+		List<Float> radii = new ArrayList<Float>();
+		List<Float> angles = new ArrayList<Float>();
+		for (int i = 0; i < resolution; i++) {
+			float adv = i/(float)resolution;
+			RPoint p = s.getPoint(adv);
+			float r = p.norm();
+			float angle = (float) Math.atan2(p.y, p.x);
+			if (angle < 0) {
+				angle += 2*PI;
+			}
+			radii.add(r);
+			angles.add(angle);
+		}
+		setProfile(radii, angles);
 	}
 	
 	/*** set the profile of the gear from a list of radii. The radii are assumed to be at equally spaced angles. ***/
@@ -96,6 +116,43 @@ public class GearShape {
 		testEquivelence();
 	}
 	
+	
+	public void cutTeeth() {
+		int numTeeth = 20;
+		float toothWidth = shape.getCurveLength()/(2f*numTeeth);
+		float toothGap = toothWidth;
+		float pointsPerUnitCurve = shape.getCurveLength()/radii.size();
+		int pointsPerTooth = Math.round(pointsPerUnitCurve*toothWidth);
+		float toothDepth = 10;
+		
+		RPoint norm = norms.get(0);
+		boolean cut = true;
+		int toothPoint = 0;
+		for (int indx = 0; indx < radii.size(); indx ++) {
+			if (indx % pointsPerTooth == 0) {
+				cut = !cut;
+				norm = norms.get(indx);
+			}
+			if (cut) {
+				//shift the radius inwards by the tooth depth in the direction of the current norm
+				float currentRadius = radii.get(indx);
+				RPoint r = points.get(indx);
+				float angle = r.angle(norm);
+				float adjust = toothDepth*cos(angle);
+				radii.set(indx, currentRadius - adjust);
+			}
+		
+			
+		}
+		
+		
+		
+		
+		
+		
+	}
+	
+	
 	/*** set the profile of the gear. ***/
 	public void setProfile(List<Float> radialFunction, List<Float> angles) {
 		if (radialFunction.size() != angles.size()) {
@@ -126,6 +183,7 @@ public class GearShape {
 			angleIndx[i] = j;
 		}
 	}
+	
 	
 	public int getRadialIndx(float angle) {
 		return angleIndx[(Math.round(angle*angleIndx.length/(2*PI))+angleIndx.length)%angleIndx.length];
@@ -225,22 +283,7 @@ public class GearShape {
 		
 		
 	}
-	
-	public void allignWithAxis(){
-		float rmin = Float.MAX_VALUE;
-		int minIndx = -1;
-		for (int i = 0 ; i < getNumAngles(); i ++) {
-			float r = radii.get(i);
-			if (r < rmin) {
-				minIndx = i;
-				rmin = r;
-			}
-		}
-		float thetaMin = angles.get(minIndx);
-		this.rotate(-thetaMin);
-	}
-	
-	
+		
 	public void drawRadiiFunction(){
 		app.stroke(Color.red.getRGB());
 		int numAngles = getNumAngles();
@@ -297,74 +340,4 @@ public class GearShape {
 		}
 	}
 	
-	
-	
-//	/*** set the gear to rotate. ***/
-//	public void rotate(double speed){
-//	//speed should be rotations per second	
-//		for (int i = 0; i < angles.size(); i++) {
-//			double current = angles.get(i);
-//			angles.set(i, current+speed);
-//		}
-//	}
-//	
-//	/*** Shifts the angle function so that the minimum radius lies along the x-axis. ***/
-//	public void rotateToAllignMinWithXaxis(){
-//		int indx = radialFunction.indexOf(Collections.min(radialFunction));
-//		double thetaAtMinRadius = angles.get(indx);
-//		for (int i = 0; i < angles.size(); i ++) {
-//			double newAngle = (angles.get(i) - thetaAtMinRadius)%(2*Math.PI);
-//			angles.set(i, newAngle);
-//		}	
-//	}
-//	
-//	/*** Shifts the angle function so the maximum radius lies along the -x-axis. ***/
-//	public void rotateToAllignMaxWithNegXaxis(){
-//		int indx = radialFunction.indexOf(Collections.max(radialFunction));
-//		double thetaAtMaxRadius = angles.get(indx);
-//		for (int i = 0; i < angles.size(); i++) {
-//			double newAngle = (angles.get(i) + Math.PI - thetaAtMaxRadius)%(2*Math.PI);
-//			angles.set(i, newAngle);
-//		}
-//	}
-
-	
-	
-	
-	//int nPoints = 5000;
-	//for (int i = 0; i < nPoints; i ++) {
-		//shape.rotate(2*PI/(float)nPoints);
-	
-				
-	//}
-	
-	//shape = toothedShape;
-	//float dist = i/((float)nPoints);
-//	RPoint p = shape.getPoint(dist);
-//	RPoint t = shape.getTangent(dist); // if we draw a point from x,y to x+t.x,y+t.y its a tangent.
-//	float tscale = toothAmplitude/(sqrt(pow(t.x, 2)+pow(t.y,2)));
-//	float shift = cos(dist*a*2*PI*100);
-//	//we want to shift the point by shift, perpendicular to the tangent line
-//	
-//	float shiftx  = -shift*tscale*t.y;
-//	float shifty = shift*tscale*t.x;
-//	
-//	//app.line(p.x, p.y, p.x - tscale*t.y, p.y + +tscale*t.x);
-//	
-//	p.translate(shiftx, shifty);
-//	toothedShape.addLineTo(p);
-	
-	
-//	
-//	double thetaPrev = angles.get(0);
-//	for (int i = 1; i < angles.size(); i++) {
-//		double theta = angles.get(i);
-//		double dtheta = theta - thetaPrev;
-//		double ds  = radialFunction.get(i) * dtheta;//arc distance we have moved = r*dtheta
-//		// find the tangent line to the gear at this point.
-//		
-//		// RPoint tangent = shape.getTangent(i/numPoints);
-//		
-//		//twist the gear a tiny bit
-//		//adjust the r and theta
 }
