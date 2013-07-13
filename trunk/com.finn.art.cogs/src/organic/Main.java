@@ -9,7 +9,9 @@ import processing.core.PShape;
 
 public class Main extends PApplet {	
 	PShape s;
-	float maxAllowedImageDim = 100f;
+	float maxAllowedImageDim = 300f;
+	private float centerTranslationX = maxAllowedImageDim + 10; 
+	private float centerTranslationY = maxAllowedImageDim + 10;
 	int loop = 0;
 	int loopMax;
 	float smallRad;
@@ -19,6 +21,7 @@ public class Main extends PApplet {
 	PShape gear2;
 	float scaleFactor = 1;
 	LineTracer tracer;
+	
 	
 	/*** loads a shape from a file, translates it to the origin and scales it down. ***/
 	private PShape loadFromFile(String fullPath) {
@@ -32,7 +35,7 @@ public class Main extends PApplet {
 	
 	/*** A very simple setup for testing. ***/
 	public void setup2() {
-		size(600,600);
+		size(600,800);
 		noSmooth();
 		s = loadFromFile("/home/finn/programming/hacking/pictures/steg1.svg");
 		translate(width/2,height/2);
@@ -44,27 +47,25 @@ public class Main extends PApplet {
 	}
 	
 	public void setup() {
-		size(600,600);
+		size(1300,650);
 		noSmooth();
 		//s = sinusoidalShape(50, 8, 4, 100);
 		s = loadFromFile("/home/finn/programming/hacking/pictures/steg1.svg");		
-		initializeBaseCircles(3,300,1000);
+		initializeBaseCircles(3,300,100);
 		//first make everything black.
 		background(Color.WHITE.getRGB());
 		stroke(Color.BLACK.getRGB());
 		fill(Color.BLACK.getRGB());
 		rect(0, 0, width, height);
-		translate(width/2,height/2);
 		
-		
-		
+				
 		// we want to draw a white circle up to the maximum possible size of the generated gear.
+		translate(centerTranslationX,centerTranslationY);
 		stroke(Color.WHITE.getRGB());
 		fill(Color.WHITE.getRGB());
 		ellipse(0,0,2*(largeRad+smallRad),2*(largeRad+smallRad));
 		stroke(Color.BLACK.getRGB()); //reset fill and stroke to be black.
 		fill(Color.BLACK.getRGB());
-		//shape(s);
 			
 	}	
 	
@@ -76,44 +77,56 @@ public class Main extends PApplet {
 		wlarge = 2*PI/numLoops;
 		wsmall = periodRatio*wlarge;
 		loopMax = numLoops;
+		
 	}
 	
 	Point linePoint = new Point();
 	Point prev = null;
 	Point next = null;
-	public void draw() {
-		
+	public void draw() {		
 		if (loop < loopMax) {
-			translate(width/2,height/2);
+			//translate(width/2,height/2);
+			translate(centerTranslationX,centerTranslationY);
 			rotate(loop*wlarge);	
 			pushMatrix();
 			translate(smallRad+largeRad,0);	
 			rotate(loop*wsmall);
-	
 			shape(s);
 			popMatrix();
+			loop ++;
+		} else if (loop == loopMax) {
+			invertBlackWhite();
+			translate(centerTranslationX, centerTranslationY);
+			white();
+			ellipse(0,0,10,10);
+			
+			//draw the shape
+			pushMatrix();
+			translate(largeRad*2,smallRad);
+			shape(s);
+			ellipse(0,0,10,10);
+			popMatrix();
+			
+			// draw the base plate
+			pushMatrix();
+			translate(largeRad + 10,-largeRad);
+			float sidePadding = 100;
+			float topBottomPadding = 100;
+			float baseWidth = smallRad+largeRad+2*sidePadding;
+			float baseHeight = 2*topBottomPadding;
+			black();
+			rect(0,0,baseWidth,baseHeight,20);
+			translate(sidePadding,topBottomPadding);
+			white();
+			ellipse(0,0,10,10);
+			translate(smallRad+largeRad,0);
+			ellipse(0,0,10,10);
+			popMatrix();
+			
+
 			
 			loop ++;
-		}
-		
-		if (loop >= loopMax) {
-			if (tracer == null) {
-				tracer = new LineTracer(this);
-				linePoint = tracer.findStart(3);	
-				tracer.countColors();
-				
-			}
-			//set the color of the point at p to red - prevents backtracking
-			int ploc =tracer.location(linePoint.x,linePoint.y);
-			System.out.println("initial color: "+pixels[ploc]); // should be -1 
-			pixels[ploc] = Color.RED.getRGB();
-			
-			System.out.println(linePoint);
-			fill(Color.RED.getRGB());
-			ellipse(linePoint.x,linePoint.y,10,10);
-			next = tracer.nextEdgePoint(linePoint, pixels);
-			prev = linePoint;
-			linePoint = next;
+		} 
 			
 			
 //			background(255);
@@ -123,8 +136,37 @@ public class Main extends PApplet {
 //			s.translate(smallRad+largeRad, 0);
 //			shape(s);
 			//noLoop();
-		}		
+			
 	}
+	
+	private void white() {
+		fill(Color.WHITE.getRGB());
+		stroke(Color.WHITE.getRGB());
+	}
+	
+	private void black() {
+		fill(Color.BLACK.getRGB());
+		stroke(Color.BLACK.getRGB());
+	}
+	
+	private void invertBlackWhite() {
+		loadPixels();
+		for (int x = 0; x < width; x ++) {
+			for (int y = 0; y < height; y ++) {
+				int loc = x + y * width;
+				int col = pixels[loc];
+				if (Color.BLACK.getRGB() == col) {
+					pixels[loc] = Color.WHITE.getRGB();
+				} else if (Color.WHITE.getRGB() == col) {
+					pixels[loc] = Color.BLACK.getRGB();
+				}
+			}
+		}
+		updatePixels();
+	}
+	
+	
+	
 	
 //	void setup() {
 //		  selectOutput("Select a file to write to:", "fileSelected");
