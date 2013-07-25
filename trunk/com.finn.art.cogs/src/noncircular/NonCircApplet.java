@@ -23,7 +23,7 @@ public class NonCircApplet extends PApplet {
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction());
 		  
-		 // translate(width/2,height/2);
+		  translate(width/2,height/2);
 		  gear1.draw();
 	}
 	
@@ -31,9 +31,7 @@ public class NonCircApplet extends PApplet {
 	
 	@Override
 	public void draw() {
-		background(255);
 		translate(width/2, height/2);
-		gear1.draw();
 		translate(cj.getGearSeparation(),0);
 		gear2.draw();
 		//plotFunction(gear1.getAngles(), gear2.getAngles());

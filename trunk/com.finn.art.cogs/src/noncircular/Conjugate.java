@@ -2,15 +2,16 @@ package noncircular;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import static processing.core.PConstants.PI;
 
 /*** This class calculates properties of a non-linear pair of gears based on the input of the radial function for an input gear. 
  *  The conjugate gear, transfer function, etc can be obtained through the relevant get methods. 
  *  This class is not thread safe - a single instance should not be shared by multiple threads. ***/
 public class Conjugate {
 	private float gearSeparation;
-	private List<Float> movementFunction;
-	private List<Float> transferFunction;
-	private List<Float> radialFunction;
+	private List<Float> movementFunction; //this array contains the angles phi of the second gear at corresponding indexes to the angles of the first gear.
+	private List<Float> transferFunction; 
+	private List<Float> radialFunction; //this array contains the radius of the second gear an indexes corresponding to the angles it is at (movement function)
 	
 
 	/*** create a Conjugate gear to the input gear.
@@ -84,9 +85,22 @@ public class Conjugate {
 		}
 				
 		calculateRadialFunction(gear1RadialFunction, gearSeparation, radialFunction);
+		shiftMovementFunctionToCoordinateSystemOfGear1(movementFunction);
 	}
 	
 	
+	private static void shiftMovementFunctionToCoordinateSystemOfGear1(List<Float> movementFunction){
+		int indx = 0;
+		for (Float phi:movementFunction) {
+			phi = PI - phi;
+			if (phi < 0) {
+				phi = phi + 2*PI;
+			}
+			
+			movementFunction.set(indx, phi);
+			indx ++;
+		}
+	}
 	
 	/*** Calculates the radial function for the driven gear. This must be equal to the separation minus the driving radius.***/
 	private void calculateRadialFunction(List<Float> gear1RadialFunction, float gearSeparation, List<Float> resultArray) {
