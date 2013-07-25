@@ -1,17 +1,19 @@
 package organic;
 
 import java.awt.Color;
-import java.awt.Point;
+
 import java.io.File;
+
 
 import processing.core.PApplet;
 import processing.core.PShape;
 
-public class Main extends PApplet {	
+public class OrganicApplet extends PApplet {	
 	PShape s;
-	float maxAllowedImageDim = 300f;
-	private float centerTranslationX = maxAllowedImageDim + 10; 
-	private float centerTranslationY = maxAllowedImageDim + 10;
+	float maximumImageDim = 300f;
+	float minImageDim = 150f;
+	private float centerTranslationX = maximumImageDim + 10; 
+	private float centerTranslationY = maximumImageDim + 10;
 	int loop = 0;
 	int loopMax;
 	float smallRad;
@@ -20,69 +22,70 @@ public class Main extends PApplet {
 	float wsmall;
 	PShape gear2;
 	float scaleFactor = 1;
-	LineTracer tracer;
+
 	
-	
-	/*** loads a shape from a file, translates it to the origin and scales it down. ***/
-	private PShape loadFromFile(String fullPath) {
-		PShape result = loadShape(fullPath);
-		float maxImageDim = Math.max(result.getWidth(), result.getHeight());
-		scaleFactor = maxAllowedImageDim/maxImageDim;
-		result.scale(scaleFactor);
-		result.translate(-result.getWidth()/2, -result.getHeight()/2);
-		return result;
-	}
-	
-	/*** A very simple setup for testing. ***/
-	public void setup2() {
-		size(600,800);
-		noSmooth();
-		s = loadFromFile("/home/finn/programming/hacking/pictures/steg1.svg");
-		translate(width/2,height/2);
-		float rwidth = scaleFactor*s.getWidth();
-		float rhight = scaleFactor*s.getHeight();
-		rect(-rwidth/2,-rhight/2,rwidth,rhight);
-		shape(s);
-		ellipse(0,0,20,20);
+	private void initialize() {
+		maximumImageDim = 300f;
+		minImageDim = 150f;
+		centerTranslationX = maximumImageDim + 10; 
+		centerTranslationY = maximumImageDim + 10;
+		loop = 0;
+		scaleFactor = 1;
+		s = loadFromFile("/home/finn/programming/hacking/organic_gears/blob2.svg",true);		
+		initializeBaseCircles(1,1000);
+		
+
+		//first make everything black.
+		background(Color.BLACK.getRGB());
+		
+		// we want to draw a white circle up to the maximum possible size of the generated gear.
+		white();
+		ellipse(0,0,2*(largeRad+smallRad),2*(largeRad+smallRad));
+		black();		
+		
 	}
 	
 	public void setup() {
 		size(1300,650);
 		noSmooth();
-		//s = sinusoidalShape(50, 8, 4, 100);
-		s = loadFromFile("/home/finn/programming/hacking/pictures/steg1.svg");		
-		initializeBaseCircles(3,300,100);
-		//first make everything black.
-		background(Color.WHITE.getRGB());
-		stroke(Color.BLACK.getRGB());
-		fill(Color.BLACK.getRGB());
-		rect(0, 0, width, height);
-		
-				
-		// we want to draw a white circle up to the maximum possible size of the generated gear.
-		translate(centerTranslationX,centerTranslationY);
-		stroke(Color.WHITE.getRGB());
-		fill(Color.WHITE.getRGB());
-		ellipse(0,0,2*(largeRad+smallRad),2*(largeRad+smallRad));
-		stroke(Color.BLACK.getRGB()); //reset fill and stroke to be black.
-		fill(Color.BLACK.getRGB());
-			
+		translate(centerTranslationX,centerTranslationY); //we do this once and only once.
+		initialize();	
 	}	
 	
+	/*** loads a shape from a file, translates it to the origin and scales it down. ***/
+	private PShape loadFromFile(String fullPath, boolean scaleToMin) {
+		PShape result = loadShape(fullPath);
+		float maxImageDim = Math.max(result.getWidth(), result.getHeight());
+		if (scaleToMin) {
+			scaleFactor = minImageDim/Math.min(result.getWidth(), result.getHeight());
+			if (scaleFactor*maxImageDim > maximumImageDim) {
+				throw new IllegalArgumentException("Cannot scale to match desired minimum dimension without exceeding maximum allowed dimension");
+			}
+		} else {
+			scaleFactor = maximumImageDim/maxImageDim;
+		}
+		result.scale(scaleFactor);
+		result.translate(-result.getWidth()/2, -result.getHeight()/2);
+		return result;
+	}
+	
+	
+	
+	
 	/*** This method initializes the radii and frequencies for the two rotating circles. ***/
-	private void initializeBaseCircles(int periodRatio, float gear2minWidth, int numLoops){
+	private void initializeBaseCircles(int periodRatio, int numLoops){
 		smallRad = Math.min(scaleFactor*s.getWidth(), scaleFactor*s.getHeight())/2;
 		System.out.println(smallRad);
 		largeRad = periodRatio * smallRad;
 		wlarge = 2*PI/numLoops;
 		wsmall = periodRatio*wlarge;
 		loopMax = numLoops;
+		System.out.println("Large Radius: "+largeRad);
+		System.out.println("Small Radius:" +smallRad);
 		
 	}
 	
-	Point linePoint = new Point();
-	Point prev = null;
-	Point next = null;
+	
 	public void draw() {		
 		if (loop < loopMax) {
 			//translate(width/2,height/2);
@@ -95,6 +98,7 @@ public class Main extends PApplet {
 			popMatrix();
 			loop ++;
 		} else if (loop == loopMax) {
+			pushMatrix();
 			invertBlackWhite();
 			translate(centerTranslationX, centerTranslationY);
 			white();
@@ -102,18 +106,20 @@ public class Main extends PApplet {
 			
 			//draw the shape
 			pushMatrix();
-			translate(largeRad*2,smallRad);
+			translate(largeRad+maximumImageDim/2,maximumImageDim/2+10);
 			shape(s);
 			ellipse(0,0,10,10);
 			popMatrix();
 			
 			// draw the base plate
 			pushMatrix();
-			translate(largeRad + 10,-largeRad);
-			float sidePadding = 100;
-			float topBottomPadding = 100;
+			float sidePadding = 75;
+			float topBottomPadding = 75;
 			float baseWidth = smallRad+largeRad+2*sidePadding;
 			float baseHeight = 2*topBottomPadding;
+			
+			translate(largeRad + smallRad/2+10,-baseHeight);
+			
 			black();
 			rect(0,0,baseWidth,baseHeight,20);
 			translate(sidePadding,topBottomPadding);
@@ -123,21 +129,35 @@ public class Main extends PApplet {
 			ellipse(0,0,10,10);
 			popMatrix();
 			
-
-			
 			loop ++;
+			popMatrix();
 		} 
-			
-			
-//			background(255);
-//			gear2.translate(-width/2, -height/2);
-//			shape(gear2);
-//			s.fill(255);
-//			s.translate(smallRad+largeRad, 0);
-//			shape(s);
-			//noLoop();
-			
+						
 	}
+	
+	@Override
+	public void keyPressed() {
+		if (key == 's') {
+			 selectOutput("Select a file to write to:", "fileSelected");
+		}
+		if (key == 'r') { //r for reset
+			initialize();
+			
+		}
+	}
+	
+	public void fileSelected(File selection) {
+		if (selection == null) {
+			println("Window was closed or the user hit cancel.");
+		} else {
+			println("User selected " + selection.getAbsolutePath());
+			save(selection.getAbsolutePath());
+		}
+	}
+	
+	
+	
+	
 	
 	private void white() {
 		fill(Color.WHITE.getRGB());
@@ -166,19 +186,8 @@ public class Main extends PApplet {
 	}
 	
 	
-	
-	
-//	void setup() {
-//		  selectOutput("Select a file to write to:", "fileSelected");
-//		}
 
-		void fileSelected(File selection) {
-		  if (selection == null) {
-		    println("Window was closed or the user hit cancel.");
-		  } else {
-		    println("User selected " + selection.getAbsolutePath());
-		  }
-		}
+	
 	
 	
 
