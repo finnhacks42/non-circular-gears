@@ -1,53 +1,87 @@
 package noncircular;
 
+import java.awt.Color;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import processing.core.PApplet;
+import processing.core.PFont;
 
 public class NonCircApplet extends PApplet {
 	
 	Gear gear1; 
 	Gear gear2;
 	Conjugate cj;
-	int nSteps = 100;
-	float dtheta = 2*PI/nSteps; //this is the change in angle per frame of the driving gear.
+	int resolution = 200;
 	int loop = 0;
 	
 	public void setup() {  
 		  size(1000,650,P2D);
+		  background(Color.WHITE.getRGB());
 		  gear1 = new Gear(this);
 		  gear2 = new Gear(this);
-		  gear1.setSinousoidalProfile(100, 50, 2, 100);
+		  gear1.setSinousoidalProfile(100, 50, 2, resolution);
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
-		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction());
-		  
+		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
+		  gear2.setColor(Color.WHITE.getRGB());
+		  //frameRate(.5f);
 		  translate(width/2,height/2);
 		  gear1.draw();
+		 
+		
+		  
+	}
+	
+	public void output() throws IOException{
+		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/programming/hacking/non_circ_gears/data.csv"));
+		List<Float> col1 = gear1.getAngles();
+		List<Float> col2 = gear1.getRadii();
+		List<Float> col3 = gear2.getAngles();
+		List<Float> col4 = gear2.getRadii();
+		
+		for (int i = 0; i < resolution; i ++) {
+			StringBuilder s = new StringBuilder("");
+			s.append(col1.get(i)).append(",").append(col2.get(i)).append(",").append(col3.get(i)).append(",").append(col4.get(i)).append("\n");
+			out.write(s.toString());
+		}
+		out.close();
+	}
+	
+	/*** This rotates the 2nd gear around the first which stays motionless. ***/
+	public void draw(){
+		translate(width/2, height/2);
+		gear1.draw();
+		
+		rotate(gear1.getAngles().get(loop));
+		translate(cj.getGearSeparation(),0);
+		rotate(PI - gear2.getAngles().get(loop));
+		gear2.draw();
+		
+		
+		loop = (loop + 1) % resolution;
 	}
 	
 	
-	
-	@Override
-	public void draw() {
+	/*** This rotates both gears in sync with one another***/
+	public void draw2() {
+		background(255);
 		translate(width/2, height/2);
+		
+		pushMatrix();
+		rotate(2*PI - gear1.getAngles().get(loop));
+		gear1.draw();
+		popMatrix();
+		
 		translate(cj.getGearSeparation(),0);
+		rotate(PI - gear2.getAngles().get(loop));
 		gear2.draw();
-		//plotFunction(gear1.getAngles(), gear2.getAngles());
-		//System.out.println(gear1.getAngles());
-		//System.out.println(gear2.getAngles());
-		noLoop();
-		
-		//rotate(gear1.getAngles().get(loop));
-		//pushMatrix();
-		//translate(cj.getGearSeparation(),0);
-		//gear2.draw();
 		
 		
-		
-		//gear2.draw();
-		loop++;
+		loop = (loop + 1) % resolution;
 	}
 	
 	/*** Float a function specifid by a list of x values against a list of y values.

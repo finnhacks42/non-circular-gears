@@ -25,8 +25,6 @@ public class Conjugate {
 	/*** This function generates a function representing the integral of the input radial function. 
 	 * The results are stored in the input result array. ***/
 	private static void calculateMovementFunction(List<Float> transferFunction, List<Float> angles,List<Float> resultArray){
-		int nSteps = transferFunction.size();
-		//double stepSize = 2*Math.PI/((double)nSteps); //TODO allow this step size to vary since angles may not always be equal ...
 		float total = 0f;
 		int indx = 0;
 		float dtheta = 0;
@@ -85,21 +83,23 @@ public class Conjugate {
 		}
 				
 		calculateRadialFunction(gear1RadialFunction, gearSeparation, radialFunction);
-		shiftMovementFunctionToCoordinateSystemOfGear1(movementFunction);
+		shiftMovementFunctionToCoordinateSystemOfGear1();
 	}
 	
 	
-	private static void shiftMovementFunctionToCoordinateSystemOfGear1(List<Float> movementFunction){
-		int indx = 0;
-		for (Float phi:movementFunction) {
-			phi = PI - phi;
-			if (phi < 0) {
-				phi = phi + 2*PI;
-			}
-			
-			movementFunction.set(indx, phi);
-			indx ++;
-		}
+	private void shiftMovementFunctionToCoordinateSystemOfGear1(){
+//		Collections.reverse(movementFunction);
+//		Collections.reverse(radialFunction);
+//		int indx = 0;
+//		for (Float phi:movementFunction) {
+//			phi = PI - phi;
+//			if (phi < 0) {
+//				phi = phi + 2*PI;
+//			}
+//			
+//			movementFunction.set(indx, phi);
+//			indx ++;
+//		}
 	}
 	
 	/*** Calculates the radial function for the driven gear. This must be equal to the separation minus the driving radius.***/
