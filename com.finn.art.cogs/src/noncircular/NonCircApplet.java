@@ -1,7 +1,10 @@
 package noncircular;
 
+import geomerative.RG;
+
 import java.awt.Color;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,18 +25,23 @@ public class NonCircApplet extends PApplet {
 	public void setup() {  
 		  size(1000,650,P2D);
 		  background(Color.WHITE.getRGB());
+		  translate(width/2,height/2);
+		  RG.init(this);
+		  
 		  gear1 = new Gear(this);
 		  gear2 = new Gear(this);
 		  gear1.setSinousoidalProfile(100, 50, 2, resolution);
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
+		  gear2.addTeeth(28, 15);
 		  gear2.setColor(Color.WHITE.getRGB());
-		  //frameRate(.5f);
-		  translate(width/2,height/2);
-		  gear1.draw();
 		 
-		
+		  //frameRate(.5f);
 		  
+		  gear1.expand(10);
+		  gear1.setColor(Color.BLACK.getRGB());
+		  gear1.draw();
+		 		  
 	}
 	
 	public void output() throws IOException{
@@ -54,15 +62,47 @@ public class NonCircApplet extends PApplet {
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
 	public void draw(){
 		translate(width/2, height/2);
-		gear1.draw();
+		if (loop < resolution) {
+			
+			rotate(gear1.getAngles().get(loop));
+			translate(cj.getGearSeparation(),0);
+			rotate(PI - gear2.getAngles().get(loop));
+			gear2.draw();
+			loop ++;
 		
-		rotate(gear1.getAngles().get(loop));
-		translate(cj.getGearSeparation(),0);
-		rotate(PI - gear2.getAngles().get(loop));
-		gear2.draw();
+		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
+			gear2.setColor(Color.BLACK.getRGB());
+			pushMatrix();
+			translate(cj.getGearSeparation()+20,0);
+			gear2.draw();
+			popMatrix();
+			fill(Color.BLACK.getRGB());
+			translate(0,200);
+			rect(0,0,cj.getGearSeparation()+60,100);
+			fill(Color.WHITE.getRGB());
+			ellipse(30,50,20,20);
+			ellipse(30+cj.getGearSeparation(),50,20,20);
+			
+			loop ++;
+		}
+		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
 		
-		
-		loop = (loop + 1) % resolution;
+	}
+	
+	@Override
+	public void keyPressed() {
+		if (key == 's') {
+			 selectOutput("Select a file to write to:", "fileSelected");
+		}
+	}
+	
+	public void fileSelected(File selection) {
+		if (selection == null) {
+			println("Window was closed or the user hit cancel.");
+		} else {
+			println("User selected " + selection.getAbsolutePath());
+			save(selection.getAbsolutePath());
+		}
 	}
 	
 	
