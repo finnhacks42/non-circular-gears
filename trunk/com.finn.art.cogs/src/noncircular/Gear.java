@@ -1,5 +1,11 @@
 package noncircular;
 
+import static processing.core.PApplet.cos;
+import static processing.core.PApplet.sin;
+import static processing.core.PConstants.PI;
+import geomerative.RPoint;
+import geomerative.RShape;
+
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,9 +13,6 @@ import java.util.List;
 
 import processing.core.PApplet;
 import processing.core.PShape;
-import static processing.core.PApplet.cos;
-import static processing.core.PApplet.sin;
-import static processing.core.PConstants.PI;
 
 /*** A gear with a radius and angle. ***/
 public class Gear {
@@ -48,6 +51,7 @@ public class Gear {
 		if (angles.length != radii.length) {
 			throw new IllegalArgumentException("radii array lenght must match angle array length");
 		}
+		
 		if (reverseAxis) { //the angles are specified relative to the -ve x axis.
 			int indx = 0;
 			for (float phi: angles) {
@@ -61,14 +65,7 @@ public class Gear {
 		
 		this.angles = angles;
 		this.radii = radii;
-		shape = app.createShape();
-		
-		for (int i = 0; i < angles.length; i ++) {
-			float r = radii[i];
-			float theta = angles[i];
-			shape.vertex(r*cos(theta), r*sin(theta));
-		}
-		shape.end();
+		shape = createShape(angles, radii, null);
 		shape.fill(Color.BLACK.getRGB());
 	}
 	
@@ -102,21 +99,132 @@ public class Gear {
 		return copyArrayToList(angles);
 	}
 	
-	/*** Adds teeth to this gear. 
-	 * The teeth are added only the what is drawn, the underlying angles and radii of the pitch curve are not changed ***/
-	public void addTeeth(int numTeeth, float toothDepth) {
+	/*** create a shape based on the specified angles and radii.
+	 * 
+	 * @param angles
+	 * @param radii
+	 * @param offsets used to create teeth or to expand the radii at each point. Can be null
+	 * @return
+	 */
+	private PShape createShape(float[] angles, float[] radii, float[] offsets) {
+		if (offsets == null) {
+			offsets = new float[angles.length];
+			Arrays.fill(offsets, 0);
+		}
+		PShape s = app.createShape();
+		for (int i = 0; i < angles.length; i ++) {
+			float r = radii[i];
+			float theta = angles[i];
+			float d = offsets[i];
+			s.vertex((r+d)*cos(theta), (r+d)*sin(theta));
+		}
+		s.end();
+		return s;
 		
 	}
 	
-	/*** Expands the shape that is drawn for the gear such that it can cut into the blanks in the other gear.
+	/*** Adds teeth to this gear. 
+	 * The teeth are added only the what is drawn, the underlying angles and radii of the pitch curve are not changed ***/
+	public void addTeeth2(int numTeeth, float toothDepth) {
+		float[] offsets = new float[angles.length];
+		
+		int pointsPerTooth = Math.round(angles.length/((float)2*numTeeth));
+		boolean up = true;
+		
+		for (int i = 0; i < angles.length; i ++) {
+			if (up) {
+				offsets[i] = toothDepth;
+			} else {
+				offsets[i] = -toothDepth;
+			}
+			if (i % pointsPerTooth == 0) {
+				up = !up;
+			}
+					
+//			//theta needs to go 0-2PI numTeeth times
+//			float offset = toothDepth * sin(theta);
+//			theta += dtheta;
+//			offsets[i] = offset;
+		}
+		
+		this.shape = createShape(angles, radii, offsets);
+	}
+	
+	
+	
+	public void addTeeth(int numTeeth, float toothDepth) {
+		//we want to find n (approximately) equally spaced points on the arc length of the curve.
+		RShape s = new RShape();
+		float r = radii[0];
+		float theta = angles[0];
+		s.addMoveTo(r*cos(theta),r*sin(theta));
+		for (int i = 1; i < angles.length; i ++) {
+			theta = angles[i];
+			r = radii[i];
+			s.addLineTo(r*cos(theta),r*sin(theta));
+		}
+		s.addClose();
+		
+		int pointsPerTooth = 50;
+		int npoints = numTeeth * 2* pointsPerTooth;
+		boolean up = false;
+		float ds = 1f/npoints;
+		float arc = 0;
+		PShape newShape = app.createShape();
+		for (int i = 0; i < npoints; i ++) {
+			RPoint p = s.getPoint(arc);
+			arc += ds;
+			
+			if (!up) {
+				newShape.vertex(p.x, p.y);
+			}
+			
+			if (i % pointsPerTooth == 0) {
+				//transition point
+				//add a point normal to the point p and out by toothdepth
+				RPoint tangent = s.getTangent(arc);
+				RPoint norm = Vector.getUnitNorm(tangent);
+				norm.scale(toothDepth);
+				newShape.vertex(p.x+norm.x, p.y+norm.y);
+				up = !up;
+			}
+		}
+		newShape.end();
+		
+		this.shape = newShape;
+			
+	}
+	
+	
+	/*** return the arc length of the pitch curve. ***/
+	private float getArcLength() {
+		float arc = 0;
+		float thetaPrev = 0;
+		for (int i = 0; i < angles.length; i ++) {
+			float theta = angles[i];
+			float r = radii[i];
+			float dtheta = theta - thetaPrev;
+			arc += r * dtheta;
+			thetaPrev = theta;
+		}
+		return arc;
+	}
+	
+	
+	/*** Creats a new shape that is an expansion of the pitch curve.
+	 *  the shape that is drawn for the gear such that it can cut into the blanks in the other gear.
 	 * Does not modify the pitch curve. 
 	 */
 	public void expand(float depth) {
-		
+		float [] offsets = new float[angles.length];
+		Arrays.fill(offsets, depth);
+		this.shape = createShape(angles, radii, offsets);
 	}
 	
 	public void draw() {
-		app.shape(shape);		
+		app.shape(shape);
+		app.fill(Color.WHITE.getRGB());
+		app.ellipse(0, 0, 20, 20);
 	}
 	
 	
