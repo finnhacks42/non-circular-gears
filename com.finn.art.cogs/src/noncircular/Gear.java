@@ -167,40 +167,43 @@ public class Gear {
 	}
 	
 	public void addTeeth(int numTeeth, float toothDepth) {
-		//we want to find n (approximately) equally spaced points on the arc length of the curve.
-		RShape s = getPitchLineShape();
 		
-		int pointsPerTooth = 50;
-		int npoints = numTeeth * 2* pointsPerTooth;
-		boolean up = false;
-		float ds = 1f/npoints;
-		float arc = 0;
+		RShape s = getPitchLineShape();
 		PShape newShape = app.createShape();
-		for (int i = 0; i < npoints; i ++) {
+		
+		//we want to find n (approximately) equally spaced points on the arc length of the curve.
+		int n = 60;
+		float ds = 1f/n;
+		boolean out = true;
+		
+		RPoint p1 = null;
+		RPoint p2 = null;
+		
+		for (int i = 0; i < n; i ++) {
+			float arc = i*ds;
 			RPoint p = s.getPoint(arc);
-			arc += ds;
+			RPoint tangent = s.getTangent(arc);
+			RPoint norm = Vector.getUnitNorm(tangent);
+			norm.scale(toothDepth/2);
+			RPoint outSidePoint = new RPoint(p.x-norm.x, p.y-norm.y);
+			RPoint insidePoint = new RPoint(p.x+norm.x,p.y+norm.y);
 			
-			
-			
-			
-			if (!up) {
-				newShape.vertex(p.x, p.y);
+			if (out) {
+				p1 = insidePoint;
+				p2 = outSidePoint;
+			} else {
+				p1 = outSidePoint;
+				p2 = insidePoint;
 			}
 			
-			if (i % pointsPerTooth == 0) {
-				//transition point
-				//add a point normal to the point p and out by toothdepth
-				RPoint tangent = s.getTangent(arc);
-				RPoint norm = Vector.getUnitNorm(tangent);
-				norm.scale(toothDepth);
-				newShape.vertex(p.x+norm.x, p.y+norm.y);
-				up = !up;
-			}
+			newShape.vertex(p1.x, p1.y);
+			newShape.vertex(p2.x, p2.y);
+			
+			out =! out;	
 		}
 		newShape.end();
-		
 		this.shape = newShape;
-			
+	
 	}
 	
 	

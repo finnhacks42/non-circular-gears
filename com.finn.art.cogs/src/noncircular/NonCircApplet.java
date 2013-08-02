@@ -60,15 +60,18 @@ public class NonCircApplet extends PApplet {
 	}
 	
 	/*** This version just draws the cutter gear stationary. ***/
-	public void draw3(){
+	public void draw(){
 		background(255);
 		translate(width/2,height/2);
 		gear2.setColor(Color.BLACK.getRGB());
+		
 		gear2.draw();
+		gear2.addTeeth(30, 10);
+		noLoop();
 	}
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
-	public void draw(){
+	public void draw3(){
 		translate(width/2, height/2);
 		if (loop < resolution) {
 			
