@@ -150,20 +150,25 @@ public class Gear {
 		this.shape = createShape(angles, radii, offsets);
 	}
 	
-	
+	/*** Produces an RShape in the shape of the pitch line. ***/
+	private RShape getPitchLineShape(){
+		RShape s = new RShape();
+		float rStart = radii[0];
+		float thetaStart = angles[0];
+		s.addMoveTo(rStart*cos(thetaStart),rStart*sin(thetaStart));
+		for (int i = 1; i < angles.length; i ++) {
+			float theta = angles[i];
+			float r = radii[i];
+			s.addLineTo(r*cos(theta),r*sin(theta));
+		}
+		s.addLineTo(rStart*cos(thetaStart), rStart*sin(thetaStart));
+		s.addClose();
+		return s;
+	}
 	
 	public void addTeeth(int numTeeth, float toothDepth) {
 		//we want to find n (approximately) equally spaced points on the arc length of the curve.
-		RShape s = new RShape();
-		float r = radii[0];
-		float theta = angles[0];
-		s.addMoveTo(r*cos(theta),r*sin(theta));
-		for (int i = 1; i < angles.length; i ++) {
-			theta = angles[i];
-			r = radii[i];
-			s.addLineTo(r*cos(theta),r*sin(theta));
-		}
-		s.addClose();
+		RShape s = getPitchLineShape();
 		
 		int pointsPerTooth = 50;
 		int npoints = numTeeth * 2* pointsPerTooth;
@@ -174,6 +179,9 @@ public class Gear {
 		for (int i = 0; i < npoints; i ++) {
 			RPoint p = s.getPoint(arc);
 			arc += ds;
+			
+			
+			
 			
 			if (!up) {
 				newShape.vertex(p.x, p.y);
@@ -223,8 +231,30 @@ public class Gear {
 	
 	public void draw() {
 		app.shape(shape);
+		app.stroke(Color.RED.getRGB());
+		drawPitchCurve();
 		app.fill(Color.WHITE.getRGB());
 		app.ellipse(0, 0, 20, 20);
+	}
+	
+	private void drawPitchCurve(){
+		float theta = angles[0];
+		float r = radii[0];
+		float startx = r*cos(theta);
+		float starty = r*sin(theta);
+		float x1 = startx;
+		float y1 = starty;
+		
+		for (int i = 1; i < angles.length; i++) {
+			theta = angles[i];
+			r = radii[i];
+			float x2 = r*cos(theta);
+			float y2 = r*sin(theta);
+			app.line(x1, y1, x2, y2);
+			x1 = x2;
+			y1 = y2;
+		}
+		app.line(x1, y1, startx, starty);
 	}
 	
 	
