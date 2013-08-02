@@ -36,7 +36,7 @@ public class NonCircApplet extends PApplet {
 		  gear2.addTeeth(28, 15);
 		  gear2.setColor(Color.WHITE.getRGB());
 		 
-		  //frameRate(.5f);
+		  frameRate(3);
 		  
 		  gear1.expand(10);
 		  gear1.setColor(Color.BLACK.getRGB());
@@ -57,6 +57,14 @@ public class NonCircApplet extends PApplet {
 			out.write(s.toString());
 		}
 		out.close();
+	}
+	
+	/*** This version just draws the cutter gear stationary. ***/
+	public void draw3(){
+		background(255);
+		translate(width/2,height/2);
+		gear2.setColor(Color.BLACK.getRGB());
+		gear2.draw();
 	}
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
@@ -84,9 +92,9 @@ public class NonCircApplet extends PApplet {
 			ellipse(30+cj.getGearSeparation(),50,20,20);
 			
 			loop ++;
+			noLoop();
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
-		
 	}
 	
 	@Override
