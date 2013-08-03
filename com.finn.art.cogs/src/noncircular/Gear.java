@@ -166,7 +166,10 @@ public class Gear {
 		return s;
 	}
 	
-	public void addTeeth(int numTeeth, float toothDepth) {
+	
+	
+	
+	public void addTeeth(int numTeeth, float toothDepth, ToothProfile toothProfile) {
 		
 		RShape s = getPitchLineShape();
 		PShape newShape = app.createShape();
@@ -178,6 +181,8 @@ public class Gear {
 		
 		RPoint p1 = null;
 		RPoint p2 = null;
+		RPoint p1Last = null;
+		RPoint p2Last = null;
 		
 		for (int i = 0; i < n; i ++) {
 			float arc = i*ds;
@@ -191,14 +196,26 @@ public class Gear {
 			if (out) {
 				p1 = insidePoint;
 				p2 = outSidePoint;
+				newShape.vertex(p1.x, p1.y);
+				
+				
 			} else {
 				p1 = outSidePoint;
 				p2 = insidePoint;
+				if (p1Last != null && p2Last != null) {
+					List<RPoint> toothPoints = toothProfile.getProfile(p1Last, p2Last, p1, p2);
+					for (RPoint tp: toothPoints) {
+						newShape.vertex(tp.x, tp.y);
+					}
+					newShape.vertex(p2.x, p2.y);
+				}
+				
+				
 			}
 			
-			newShape.vertex(p1.x, p1.y);
-			newShape.vertex(p2.x, p2.y);
 			
+			p1Last = p1;
+			p2Last = p2;
 			out =! out;	
 		}
 		newShape.end();
