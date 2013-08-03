@@ -38,4 +38,13 @@ public class Vector {
 		}
 		return result;
 	}
+	
+	/*** return a point the specified percentage along the input line. ***/
+	public static RPoint getPoint(float percentage, float x1, float y1, float x2, float y2){
+		float dx = (x2 - x1);
+		float dy = (y2 - y1);
+		float dx2 = percentage*dx;
+		float dy2 = percentage*dy;
+		return new RPoint(x1+dx2, y1+dy2);
+	}
 }
