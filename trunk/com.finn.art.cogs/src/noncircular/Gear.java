@@ -172,7 +172,7 @@ public class Gear {
 		PShape newShape = app.createShape();
 		
 		//we want to find n (approximately) equally spaced points on the arc length of the curve.
-		int n = 60;
+		int n = numTeeth*2;
 		float ds = 1f/n;
 		boolean out = true;
 		
@@ -234,8 +234,8 @@ public class Gear {
 	
 	public void draw() {
 		app.shape(shape);
-		app.stroke(Color.RED.getRGB());
-		drawPitchCurve();
+		//app.stroke(Color.RED.getRGB());
+		//drawPitchCurve();
 		app.fill(Color.WHITE.getRGB());
 		app.ellipse(0, 0, 20, 20);
 	}

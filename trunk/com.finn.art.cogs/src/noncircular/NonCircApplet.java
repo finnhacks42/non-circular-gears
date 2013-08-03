@@ -33,10 +33,10 @@ public class NonCircApplet extends PApplet {
 		  gear1.setSinousoidalProfile(100, 50, 2, resolution);
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
-		  gear2.addTeeth(28, 15);
+		  gear2.addTeeth(20, 15);
 		  gear2.setColor(Color.WHITE.getRGB());
 		 
-		  frameRate(3);
+		  //frameRate(3);
 		  
 		  gear1.expand(10);
 		  gear1.setColor(Color.BLACK.getRGB());
@@ -60,7 +60,7 @@ public class NonCircApplet extends PApplet {
 	}
 	
 	/*** This version just draws the cutter gear stationary. ***/
-	public void draw(){
+	public void draw3(){
 		background(255);
 		translate(width/2,height/2);
 		gear2.setColor(Color.BLACK.getRGB());
@@ -71,7 +71,7 @@ public class NonCircApplet extends PApplet {
 	}
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
-	public void draw3(){
+	public void draw(){
 		translate(width/2, height/2);
 		if (loop < resolution) {
 			
