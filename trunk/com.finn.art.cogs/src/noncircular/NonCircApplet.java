@@ -15,6 +15,10 @@ import processing.core.PApplet;
 
 
 public class NonCircApplet extends PApplet {
+	static final float BASE_PLATE_ADDITION = 40; //how much on either side of all the holes in the base plate.
+	static final float AXEL_WIDTH = 20;
+	static final float HOLE_SIZE = 20;
+	
 	
 	Gear gear1; 
 	Gear gear2;
@@ -64,8 +68,7 @@ public class NonCircApplet extends PApplet {
 	public void draw3(){
 		background(255);
 		translate(width/2,height/2);
-		gear2.setColor(Color.BLACK.getRGB());
-		
+		gear2.setColor(Color.BLACK.getRGB());		
 		gear2.draw();
 		gear2.addTeeth(30, 10,profile);
 		noLoop();
@@ -85,18 +88,21 @@ public class NonCircApplet extends PApplet {
 		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
 			gear2.setColor(Color.BLACK.getRGB());
 			pushMatrix();
-			translate(cj.getGearSeparation()+20,0);
+			translate(cj.getGearSeparation()+30,0);
 			gear2.draw();
 			popMatrix();
+			
 			fill(Color.BLACK.getRGB());
 			translate(0,200);
-			rect(0,0,cj.getGearSeparation()+60,100);
+			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
 			fill(Color.WHITE.getRGB());
-			ellipse(30,50,20,20);
-			ellipse(30+cj.getGearSeparation(),50,20,20);
+			translate(BASE_PLATE_ADDITION+AXEL_WIDTH/2f,BASE_PLATE_ADDITION+AXEL_WIDTH/2f);
+			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
+			translate(cj.getGearSeparation(),0);
+			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
 			
 			loop ++;
-			noLoop();
+			
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
 	}
@@ -134,6 +140,11 @@ public class NonCircApplet extends PApplet {
 		
 		
 		loop = (loop + 1) % resolution;
+	}
+	
+	
+	private float findYCoordOfLowestColouredPixel(){
+		return 0f; //TODO
 	}
 	
 	/*** Float a function specifid by a list of x values against a list of y values.
