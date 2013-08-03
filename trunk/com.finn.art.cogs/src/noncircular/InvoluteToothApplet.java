@@ -9,14 +9,15 @@ import organic.LineTracer;
 import processing.core.PApplet;
 
 public class InvoluteToothApplet extends PApplet {
+	float pressureAngleDegrees = 20;
+	float pitchRadius = 200;
+	float dtheta = 2*PI/1000f;
+	float module = 15;
 	
-	float pitchRadius = 100;
+	float pressureAngle;
 	float baseRadius;
 	float maxRadius;
-	float pressureAngle = 20;
-	float module = 10;
 	float theta = 0;
-	float dtheta = 2*PI/100f;
 	
 	List<Float> xCoords = new ArrayList<Float>();
 	List<Float> yCoords = new ArrayList<Float>();
@@ -25,6 +26,7 @@ public class InvoluteToothApplet extends PApplet {
 	public void setup() {
 		size(500,500);
 		translate(width/2,height/2);
+		pressureAngle = pressureAngleDegrees*PI/180f;
 		baseRadius = pitchRadius*cos(pressureAngle);
 		maxRadius = pitchRadius + module;
 		calculateCurve();
