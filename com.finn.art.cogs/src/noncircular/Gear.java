@@ -21,12 +21,22 @@ public class Gear {
 	private float[] angles;
 	private float[] radii;
 	private PShape shape;
+	private float axelWidth  = 20;
 	
 	
 	
 	public Gear(PApplet app) {
 		this.app = app;
 	}
+	
+	public void setAxelWidth(float width) {
+		this.axelWidth = width;
+	}
+	
+	public float getAxelWidth(){
+		return this.axelWidth;
+	}
+	
 	
 	private float[] copyListToArray(List<Float> input){
 		float[] result = new float[input.size()];
@@ -254,7 +264,7 @@ public class Gear {
 		//app.stroke(Color.RED.getRGB());
 		//drawPitchCurve();
 		app.fill(Color.WHITE.getRGB());
-		app.ellipse(0, 0, 20, 20);
+		app.ellipse(0, 0, axelWidth, axelWidth);
 	}
 	
 	private void drawPitchCurve(){
