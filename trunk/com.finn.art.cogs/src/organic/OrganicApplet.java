@@ -185,15 +185,10 @@ public class OrganicApplet extends PApplet {
 		updatePixels();
 	}
 	
-	
-
-	
-	
-	
-
 	/*** create a sinusoidal curve. ***/
 	private PShape sinusoidalShape(float radius, float rad2, int freq, int numPoints) {
 		PShape result = new PShape();
+		result.beginShape();
 		float theta = 0;
 		float dtheta = 2*PI/numPoints;
 		float xmax = Float.MIN_VALUE;
@@ -213,7 +208,7 @@ public class OrganicApplet extends PApplet {
 			if (x < xmin){xmin = x;}
 			if (y < ymin){ymin = y;}
 		}	
-		result.end();
+		result.endShape();
 		result.stroke(Color.BLACK.getRGB());
 		result.fill(Color.BLACK.getRGB());	
 		result.width = xmax - xmin;

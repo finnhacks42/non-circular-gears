@@ -3,14 +3,14 @@ package noncircular;
 import static processing.core.PApplet.cos;
 import static processing.core.PApplet.sin;
 import static processing.core.PConstants.PI;
+import geomerative.RG;
 import geomerative.RPoint;
 import geomerative.RShape;
-
 import java.awt.Color;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import processing.core.PApplet;
 import processing.core.PShape;
 
@@ -22,22 +22,56 @@ public class Gear {
 	private float[] radii;
 	private PShape shape;
 	private float axelWidth  = 20;
+	private Color color = Color.BLACK;
 	
+	/*** create a new gear from a drawing loaded from a file.
+	 * If at any point there are two radii for a given angle then the first one reached along the curve will be used. ***/
+	public static Gear loadFromFile(File file, PApplet app, int resolution){
+		RShape s = RG.loadShape(file.getAbsolutePath());
+		List<Float> radii = new ArrayList<Float>();
+		List<Float> angles = new ArrayList<Float>();
+		
+		RPoint center = s.getCenter();
+		RPoint p1 = s.getPoint(0);
+		float thetaPrev = 0;
+		angles.add(0f);
+		radii.add(center.dist(p1));
+		for (int i = 1 ; i < resolution; i ++) {
+			RPoint point = s.getPoint(i/(float)resolution);
+			float theta = point.angle(p1);
+			if (theta < 0) {theta += 2*PI;}
+			if (theta > thetaPrev){
+				float r = center.dist(point);
+				angles.add(theta);
+				radii.add(r);
+				thetaPrev = theta;
+			}
+			
+		}
+		
+		Gear gear = new Gear(app);
+		gear.setProfile(radii, angles, true);
+		System.out.println(angles);
+		System.out.println(radii);
+		return gear;
+	}
 	
-	
+	/*** Create a new gear without specifying any shape. ***/
 	public Gear(PApplet app) {
 		this.app = app;
 	}
 	
+	/*** Set the width in pixels of the circle that should be drawn for the gear axel. ***/
 	public void setAxelWidth(float width) {
 		this.axelWidth = width;
 	}
 	
+	/*** Get the width in pixels of the circle drawn for the axel. ***/
 	public float getAxelWidth(){
 		return this.axelWidth;
 	}
 	
-	
+	/*** create an array of floats from a list of Floats. ***/
 	private float[] copyListToArray(List<Float> input){
 		float[] result = new float[input.size()];
 		int indx = 0;
@@ -48,20 +82,32 @@ public class Gear {
 		return result;
 	}
 	
-	public void setColor(int rgb) {
-		shape.fill(rgb);
-		shape.stroke(rgb);
+	/*** create a list of Floats from an array of floats. ***/
+	private List<Float> copyArrayToList(float[] array) {
+		List<Float> result = new ArrayList<Float>();
+		for (float f: array) {
+			result.add(f);
+		}
+		return result;
 	}
 	
+	/*** Set the fill and stroke the gear should be painted as. ***/
+	public void setColor(Color color) {
+		this.color = color;
+		shape.setFill(color.getRGB());
+		shape.setStroke(color.getRGB());
+	}
+	
+	/*** Set the shape of the gear. ***/
 	public void setProfile(List<Float> radii, List<Float> angles, boolean reverseAxis) {
 		setProfile(copyListToArray(radii), copyListToArray(angles), reverseAxis);
 	}
 	
+	/*** Set the shape of the gear. ***/
 	public void setProfile(float[] radii, float[] angles, boolean reverseAxis) {
 		if (angles.length != radii.length) {
 			throw new IllegalArgumentException("radii array lenght must match angle array length");
 		}
-		
 		if (reverseAxis) { //the angles are specified relative to the -ve x axis.
 			int indx = 0;
 			for (float phi: angles) {
@@ -71,14 +117,12 @@ public class Gear {
 				indx ++;
 			}
 		}
-		
-		
 		this.angles = angles;
 		this.radii = radii;
 		shape = createShape(angles, radii, null);
-		shape.fill(Color.BLACK.getRGB());
 	}
 	
+	/*** Set the shape of the gear as a sinusoidal radius. ***/
 	public void setSinousoidalProfile(float baseRadius, float variableRad, int freq, int numPoints) {
 		if (variableRad >= baseRadius) {throw new IllegalArgumentException("varialble radius component must be small than base radius");}
 		angles = new float[numPoints];
@@ -93,18 +137,12 @@ public class Gear {
 		setProfile(radii, angles, false);
 	}
 	
-	private List<Float> copyArrayToList(float[] array) {
-		List<Float> result = new ArrayList<Float>();
-		for (float f: array) {
-			result.add(f);
-		}
-		return result;
-	}
-	
+	/*** get the radii of the gear pitch curve. ***/
 	public List<Float> getRadii() {
 		return copyArrayToList(radii);
 	}
 	
+	/*** get the angles at which the radius of the gear pitch curve is specified. ***/
 	public List<Float> getAngles() {
 		return copyArrayToList(angles);
 	}
@@ -122,42 +160,20 @@ public class Gear {
 			Arrays.fill(offsets, 0);
 		}
 		PShape s = app.createShape();
+		float r0 = radii[0]+offsets[0];
+		float theta0 = angles[0];
+		s.beginShape();
 		for (int i = 0; i < angles.length; i ++) {
 			float r = radii[i];
 			float theta = angles[i];
 			float d = offsets[i];
 			s.vertex((r+d)*cos(theta), (r+d)*sin(theta));
 		}
-		s.end();
-		return s;
-		
-	}
-	
-	/*** Adds teeth to this gear. 
-	 * The teeth are added only the what is drawn, the underlying angles and radii of the pitch curve are not changed ***/
-	public void addTeeth2(int numTeeth, float toothDepth) {
-		float[] offsets = new float[angles.length];
-		
-		int pointsPerTooth = Math.round(angles.length/((float)2*numTeeth));
-		boolean up = true;
-		
-		for (int i = 0; i < angles.length; i ++) {
-			if (up) {
-				offsets[i] = toothDepth;
-			} else {
-				offsets[i] = -toothDepth;
-			}
-			if (i % pointsPerTooth == 0) {
-				up = !up;
-			}
-					
-//			//theta needs to go 0-2PI numTeeth times
-//			float offset = toothDepth * sin(theta);
-//			theta += dtheta;
-//			offsets[i] = offset;
-		}
-		
-		this.shape = createShape(angles, radii, offsets);
+		s.vertex(r0*cos(theta0), r0*sin(theta0));
+		s.endShape();
+		s.setFill(color.getRGB());
+		s.setStroke(color.getRGB());
+		return s;	
 	}
 	
 	/*** Produces an RShape in the shape of the pitch line. ***/
@@ -176,24 +192,20 @@ public class Gear {
 		return s;
 	}
 	
-	
-	
-	
+	/*** Add teeth to this gear. This does not modify the pitch-line of the shape, only the shape that will be drawn. ***/
 	public void addTeeth(int numTeeth, float toothDepth, ToothProfile toothProfile) {
-		
 		RShape s = getPitchLineShape();
-		PShape newShape = app.createShape();
-		
 		//we want to find n (approximately) equally spaced points on the arc length of the curve.
 		int n = numTeeth*2;
 		float ds = 1f/n;
 		boolean out = true;
-		
 		RPoint p1 = null;
 		RPoint p2 = null;
 		RPoint p1Last = null;
 		RPoint p2Last = null;
-		
+		RPoint first = null;
+		PShape newShape = app.createShape();
+		newShape.beginShape();
 		for (int i = 0; i < n; i ++) {
 			float arc = i*ds;
 			RPoint p = s.getPoint(arc);
@@ -202,13 +214,13 @@ public class Gear {
 			norm.scale(toothDepth/2);
 			RPoint outSidePoint = new RPoint(p.x-norm.x, p.y-norm.y);
 			RPoint insidePoint = new RPoint(p.x+norm.x,p.y+norm.y);
-			
 			if (out) {
 				p1 = insidePoint;
 				p2 = outSidePoint;
 				newShape.vertex(p1.x, p1.y);
-				
-				
+				if (first == null) {
+					first = p1;
+				}
 			} else {
 				p1 = outSidePoint;
 				p2 = insidePoint;
@@ -219,33 +231,14 @@ public class Gear {
 					}
 					newShape.vertex(p2.x, p2.y);
 				}
-				
-				
 			}
-			
-			
 			p1Last = p1;
 			p2Last = p2;
 			out =! out;	
 		}
-		newShape.end();
+		newShape.vertex(first.x, first.y);
+		newShape.endShape();
 		this.shape = newShape;
-	
-	}
-	
-	
-	/*** return the arc length of the pitch curve. ***/
-	private float getArcLength() {
-		float arc = 0;
-		float thetaPrev = 0;
-		for (int i = 0; i < angles.length; i ++) {
-			float theta = angles[i];
-			float r = radii[i];
-			float dtheta = theta - thetaPrev;
-			arc += r * dtheta;
-			thetaPrev = theta;
-		}
-		return arc;
 	}
 	
 	
@@ -259,6 +252,7 @@ public class Gear {
 		this.shape = createShape(angles, radii, offsets);
 	}
 	
+	/*** draw the gear (with teeth) if any. ***/
 	public void draw() {
 		app.shape(shape);
 		//app.stroke(Color.RED.getRGB());
@@ -267,6 +261,7 @@ public class Gear {
 		app.ellipse(0, 0, axelWidth, axelWidth);
 	}
 	
+	/*** draw the pitch curve of the gear. ***/
 	private void drawPitchCurve(){
 		float theta = angles[0];
 		float r = radii[0];
@@ -286,8 +281,4 @@ public class Gear {
 		}
 		app.line(x1, y1, startx, starty);
 	}
-	
-	
-	
-
 }

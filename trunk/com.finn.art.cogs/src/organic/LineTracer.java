@@ -131,6 +131,7 @@ public class LineTracer {
 		Point nextP = null;
 		Point p  = start;
 		int pointCount = 0;
+		shape.beginShape();
 		while (true) {
 			shape.vertex(p.x, p.y);
 			//set the color of the point at p to red - prevents backtracking
@@ -152,7 +153,7 @@ public class LineTracer {
 			}
 			pointCount ++;
 		}
-		shape.end();
+		shape.endShape();
 		return shape;	
 	}
 	

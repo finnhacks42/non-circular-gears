@@ -19,7 +19,6 @@ public class NonCircApplet extends PApplet {
 	static final float AXEL_WIDTH = 20;
 	static final float HOLE_SIZE = 20;
 	
-	
 	Gear gear1; 
 	Gear gear2;
 	Conjugate cj;
@@ -33,20 +32,20 @@ public class NonCircApplet extends PApplet {
 		  translate(width/2,height/2);
 		  RG.init(this);
 		  
-		  gear1 = new Gear(this);
-		  gear2 = new Gear(this);
-		  gear1.setSinousoidalProfile(100, 50, 2, resolution);
-		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
-		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
-		  gear2.addTeeth(29, 15,profile);
-		  gear2.setColor(Color.WHITE.getRGB());
+		  //gear1 = new Gear(this);
+		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, 10);
+//		  gear2 = new Gear(this);
+//		  //gear1.setSinousoidalProfile(100, 50, 2, resolution);
+//		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
+//		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
+//		  gear2.addTeeth(29, 15,profile);
+//		  gear2.setColor(Color.WHITE);
 		 
 		  //frameRate(3);
-		  
-		  gear1.expand(10);
-		  gear1.setColor(Color.BLACK.getRGB());
+		 // gear1.expand(10);
+		  gear1.setColor(Color.BLACK);
 		  gear1.draw();
-		 		  
+		  
 	}
 	
 	public void output() throws IOException{
@@ -64,34 +63,21 @@ public class NonCircApplet extends PApplet {
 		out.close();
 	}
 	
-	/*** This version just draws the cutter gear stationary. ***/
-	public void draw3(){
-		background(255);
-		translate(width/2,height/2);
-		gear2.setColor(Color.BLACK.getRGB());		
-		gear2.draw();
-		gear2.addTeeth(30, 10,profile);
-		noLoop();
-	}
-	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
-	public void draw(){
+	public void draw4(){
 		translate(width/2, height/2);
-		if (loop < resolution) {
-			
+		if (loop < resolution) {			
 			rotate(gear1.getAngles().get(loop));
 			translate(cj.getGearSeparation(),0);
 			rotate(PI - gear2.getAngles().get(loop));
 			gear2.draw();
 			loop ++;
-		
 		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
-			gear2.setColor(Color.BLACK.getRGB());
+			gear2.setColor(Color.BLACK);
 			pushMatrix();
 			translate(cj.getGearSeparation()+30,0);
 			gear2.draw();
 			popMatrix();
-			
 			fill(Color.BLACK.getRGB());
 			translate(0,200);
 			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
@@ -100,9 +86,7 @@ public class NonCircApplet extends PApplet {
 			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
 			translate(cj.getGearSeparation(),0);
 			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
-			
 			loop ++;
-			
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
 	}
