@@ -47,4 +47,28 @@ public class Vector {
 		float dy2 = percentage*dy;
 		return new RPoint(x1+dx2, y1+dy2);
 	}
+	
+	/*** returns true if p1 is clockwise from p2 otherwise false. ***/
+	public static boolean clockwise(RPoint p1, RPoint p2) {
+		float theta1 = (float) Math.atan2(p1.y, p1.x); //a number between -PI and PI
+		float theta2 = (float) Math.atan2(p2.y, p2.x);
+		float diff = theta2 - theta1;
+		float diffMag = Math.abs(diff);
+		if (diffMag >= PI) {
+			diff = - diff;
+		}
+		if (diff < 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public static float angle(RPoint p1, RPoint p2) {
+		float theta1 = (float) Math.atan2(p1.y, p1.x); //a number between -PI and PI
+		float theta2 = (float) Math.atan2(p2.y, p2.x);
+		float diff = theta2 - theta1;
+		if (diff <0) {diff += 2*PI;} 
+		return diff;
+	}
 }

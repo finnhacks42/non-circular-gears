@@ -20,6 +20,7 @@ public class Conjugate {
 	 * The lower this value the greater the accuracy but the longer the gear will take to create. ***/
 	public Conjugate(List<Float> gear1RadialFunction, List<Float> angles ,double tolerance) {
 		calculate(gear1RadialFunction,angles, tolerance);
+		System.out.println("Conjugate calculated");
 	}
 	
 	/*** This function generates a function representing the integral of the input radial function. 
@@ -63,6 +64,7 @@ public class Conjugate {
 		boolean up = true; 
 		
 		while (Math.abs(difference) > tolerance) {
+			System.out.println(tolerance);
 			calculateTransferFunction(gear1RadialFunction, gearSeparation, transferFunction);
 			calculateMovementFunction(transferFunction, angles, movementFunction);
 			double phiMax = movementFunction.get(movementFunction.size() - 1);
