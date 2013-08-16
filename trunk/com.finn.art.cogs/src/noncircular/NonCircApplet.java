@@ -33,16 +33,16 @@ public class NonCircApplet extends PApplet {
 		  RG.init(this);
 		  
 		  //gear1 = new Gear(this);
-		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, 10);
-//		  gear2 = new Gear(this);
-//		  //gear1.setSinousoidalProfile(100, 50, 2, resolution);
-//		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
-//		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
-//		  gear2.addTeeth(29, 15,profile);
-//		  gear2.setColor(Color.WHITE);
+		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, 50);
+		  gear2 = new Gear(this);
+		  //gear1.setSinousoidalProfile(100, 50, 2, resolution);
+		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .01f);
+		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
+		  gear2.addTeeth(29, 15,profile);
+		  gear2.setColor(Color.WHITE);
 		 
 		  //frameRate(3);
-		 // gear1.expand(10);
+		  gear1.expand(10);
 		  gear1.setColor(Color.BLACK);
 		  gear1.draw();
 		  

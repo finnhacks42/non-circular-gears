@@ -6,11 +6,13 @@ import static processing.core.PConstants.PI;
 import geomerative.RG;
 import geomerative.RPoint;
 import geomerative.RShape;
+
 import java.awt.Color;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import processing.core.PApplet;
 import processing.core.PShape;
 
@@ -27,32 +29,32 @@ public class Gear {
 	/*** create a new gear from a drawing loaded from a file.
 	 * If at any point there are two radii for a given angle then the first one reached along the curve will be used. ***/
 	public static Gear loadFromFile(File file, PApplet app, int resolution){
-		RShape s = RG.loadShape(file.getAbsolutePath());
-		List<Float> radii = new ArrayList<Float>();
-		List<Float> angles = new ArrayList<Float>();
-		
-		RPoint center = s.getCenter();
-		RPoint p1 = s.getPoint(0);
-		float thetaPrev = 0;
-		angles.add(0f);
-		radii.add(center.dist(p1));
-		for (int i = 1 ; i < resolution; i ++) {
-			RPoint point = s.getPoint(i/(float)resolution);
-			float theta = point.angle(p1);
-			if (theta < 0) {theta += 2*PI;}
-			if (theta > thetaPrev){
-				float r = center.dist(point);
-				angles.add(theta);
-				radii.add(r);
-				thetaPrev = theta;
+			List<Float> angles = new ArrayList<Float>();
+			List<Float> radii = new ArrayList<Float>();
+			RShape s = RG.loadShape(file.getAbsolutePath());
+			RPoint center = s.getCenter();
+			RPoint pPrev = s.getPoint(0);
+			pPrev.sub(center);
+			RPoint p1 = s.getPoint(1/(float)resolution);
+			p1.sub(center);
+			RPoint axis = new RPoint(10,0);
+			boolean isClockwise = Vector.clockwise(p1, pPrev);
+			for (int i = 1; i < resolution; i++) {
+				RPoint point = s.getPoint(i/(float)resolution);
+				point.sub(center);
+				if (Vector.clockwise(point, pPrev) == isClockwise) {
+					//add a point
+					float radius = point.norm();
+					float angle = Vector.angle(axis,point);
+					angles.add(angle);
+					radii.add(radius);
+					pPrev = point;
+				}
 			}
-			
-		}
+		
 		
 		Gear gear = new Gear(app);
 		gear.setProfile(radii, angles, true);
-		System.out.println(angles);
-		System.out.println(radii);
 		return gear;
 	}
 	
