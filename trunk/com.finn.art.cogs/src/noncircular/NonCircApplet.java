@@ -22,29 +22,36 @@ public class NonCircApplet extends PApplet {
 	Gear gear1; 
 	Gear gear2;
 	Conjugate cj;
-	int resolution = 200;
+	int resolution = 600;
 	int loop = 0;
-	ToothProfile profile = new AngleTooth(.5f);
+	ToothProfile profile = new SquareAndAngleTooth(.5f, .3f);
 	
 	public void setup() {  
-		  size(1000,650,P2D);
+		  size(1900,700,P2D);
 		  background(Color.WHITE.getRGB());
-		  translate(width/2,height/2);
+		  translate(width/3,height/3);
 		  RG.init(this);
-		  
+		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, resolution);
 		  //gear1 = new Gear(this);
-		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, 50);
+		  //gear1.setSinousoidalProfile(150, 80, 2, resolution);
+		  
+		  resolution = gear1.getAngles().size(); //there may be less angles in the loaded gear than specified in the resolution due to overhangs
 		  gear2 = new Gear(this);
-		  //gear1.setSinousoidalProfile(100, 50, 2, resolution);
-		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .01f);
+		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
+		  System.out.println(cj.getRadialFunction());
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
-		  gear2.addTeeth(29, 15,profile);
+		  gear2.addTeeth(41, 15,profile);
 		  gear2.setColor(Color.WHITE);
+		  //gear2.setStroke(Color.BLACK);
 		 
-		  //frameRate(3);
+		  //frameRate(0.5f);
 		  gear1.expand(10);
 		  gear1.setColor(Color.BLACK);
 		  gear1.draw();
+		  //translate(cj.getGearSeparation(),0);
+		  //gear2.draw();
+		 
+		  
 		  
 	}
 	
@@ -64,14 +71,19 @@ public class NonCircApplet extends PApplet {
 	}
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
-	public void draw4(){
-		translate(width/2, height/2);
-		if (loop < resolution) {			
-			rotate(gear1.getAngles().get(loop));
+	public void draw(){
+		translate(width/3, height/3);
+		if (loop < resolution) {
+			float angle1 = gear1.getAngles().get(loop);
+			rotate(angle1);
 			translate(cj.getGearSeparation(),0);
-			rotate(PI - gear2.getAngles().get(loop));
+			float angle2 = PI - gear2.getAngles().get(loop);
+			rotate(angle2);
+			//System.out.println("Loop:"+loop);
+			//System.out.println(angle1);
+			//System.out.println(angle2);
 			gear2.draw();
-			loop ++;
+			loop = (loop + 1); //% resolution;
 		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
 			gear2.setColor(Color.BLACK);
 			pushMatrix();
@@ -79,7 +91,7 @@ public class NonCircApplet extends PApplet {
 			gear2.draw();
 			popMatrix();
 			fill(Color.BLACK.getRGB());
-			translate(0,200);
+			translate(0,300);
 			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
 			fill(Color.WHITE.getRGB());
 			translate(BASE_PLATE_ADDITION+AXEL_WIDTH/2f,BASE_PLATE_ADDITION+AXEL_WIDTH/2f);
@@ -89,6 +101,12 @@ public class NonCircApplet extends PApplet {
 			loop ++;
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
+	}
+	
+	/*** this draws a function***/
+	public void draw4(){
+		background(255);
+		plotFunction(gear2.getRadii(),gear2.getAngles());
 	}
 	
 	@Override

@@ -26,6 +26,9 @@ public class Gear {
 	private float axelWidth  = 20;
 	private Color color = Color.BLACK;
 	
+	public void setStroke(Color c) {
+		shape.setStroke(c.getRGB());
+	}
 	/*** create a new gear from a drawing loaded from a file.
 	 * If at any point there are two radii for a given angle then the first one reached along the curve will be used. ***/
 	public static Gear loadFromFile(File file, PApplet app, int resolution){
@@ -38,8 +41,9 @@ public class Gear {
 			RPoint p1 = s.getPoint(1/(float)resolution);
 			p1.sub(center);
 			RPoint axis = new RPoint(10,0);
+			
 			boolean isClockwise = Vector.clockwise(p1, pPrev);
-			for (int i = 1; i < resolution; i++) {
+			for (int i = 0; i < resolution; i++) {
 				RPoint point = s.getPoint(i/(float)resolution);
 				point.sub(center);
 				if (Vector.clockwise(point, pPrev) == isClockwise) {

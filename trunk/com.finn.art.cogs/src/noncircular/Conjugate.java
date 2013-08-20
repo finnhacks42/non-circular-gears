@@ -2,6 +2,7 @@ package noncircular;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
 import static processing.core.PConstants.PI;
 
 /*** This class calculates properties of a non-linear pair of gears based on the input of the radial function for an input gear. 
@@ -19,9 +20,17 @@ public class Conjugate {
 	 * @param tolerance a double indicating the tolerance the gear must be produced to. 
 	 * The lower this value the greater the accuracy but the longer the gear will take to create. ***/
 	public Conjugate(List<Float> gear1RadialFunction, List<Float> angles ,double tolerance) {
+		if (gear1RadialFunction.size() != angles.size()) {
+			throw new IllegalArgumentException("Number of radial points must match number of angles");
+		}
+		if (Collections.min(gear1RadialFunction) <= 0) {
+			throw new IllegalArgumentException("The radius must always be greater than 0");
+		}
 		calculate(gear1RadialFunction,angles, tolerance);
 		System.out.println("Conjugate calculated");
 	}
+	
+	
 	
 	/*** This function generates a function representing the integral of the input radial function. 
 	 * The results are stored in the input result array. ***/
@@ -32,7 +41,10 @@ public class Conjugate {
 		float thetaPrev = angles.get(0);
 		for (float radius: transferFunction) {
 			float theta = angles.get(indx);
-			dtheta = theta - thetaPrev;
+			dtheta = (theta - thetaPrev); //there is probably an issue here if the values of theta do not run from 0 - 2PI...
+			if (dtheta < 0) {
+				dtheta = dtheta + 2*PI;
+			}
 			total += radius*dtheta;
 			resultArray.set(indx, total);
 			thetaPrev = theta;
@@ -57,16 +69,15 @@ public class Conjugate {
 		radialFunction = createZeroedArray(nSteps);
 		
 		//set the gear seperation to just larger than the maximum radius of the driving gear. This will be too small.
-		gearSeparation = Collections.max(gear1RadialFunction) + .000000001f; 
+		gearSeparation = Collections.max(gear1RadialFunction) + 1f; 
 		double difference = tolerance + 1;
 		double increment = gearSeparation/2d;
 		// variable stores the direction we were last moving the gear separation. Initially this will be up.
 		boolean up = true; 
 		
 		while (Math.abs(difference) > tolerance) {
-			System.out.println(tolerance);
 			calculateTransferFunction(gear1RadialFunction, gearSeparation, transferFunction);
-			calculateMovementFunction(transferFunction, angles, movementFunction);
+			calculateMovementFunction(transferFunction, angles, movementFunction);	
 			double phiMax = movementFunction.get(movementFunction.size() - 1);
 			difference = phiMax - Math.PI*2;
 			if (difference > 0) { //phiMax is too large -> gear separation is too small
@@ -83,7 +94,8 @@ public class Conjugate {
 				up = false;
 			}
 		}
-				
+		//System.out.println(Collections.min(transferFunction));
+		//System.out.println(Collections.min(movementFunction));
 		calculateRadialFunction(gear1RadialFunction, gearSeparation, radialFunction);
 		shiftMovementFunctionToCoordinateSystemOfGear1();
 	}
@@ -115,7 +127,13 @@ public class Conjugate {
 	private void calculateTransferFunction(List<Float> gear1RadialFunction, float gearSeparation, List<Float> resultArray) {
 		int indx = 0;
 		for (float radius: gear1RadialFunction) {
-			resultArray.set(indx, radius/(gearSeparation - radius)); 
+			float denominator = gearSeparation - radius;
+			if (denominator <= 0) {
+				throw new IllegalArgumentException("Gear separation cannot be smaller than or equal to any radius in the radial function.");
+			}
+			
+			float value = radius/denominator;
+			resultArray.set(indx, value); 
 			indx ++;
 		}
 	}
