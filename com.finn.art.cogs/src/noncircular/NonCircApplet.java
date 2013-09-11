@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import java.awt.Point;
 import processing.core.PApplet;
+import utilities.LineTracer;
+
 
 
 public class NonCircApplet extends PApplet {
@@ -28,8 +30,10 @@ public class NonCircApplet extends PApplet {
 	
 	public void setup() {  
 		  size(1900,700,P2D);
+		  noSmooth();
 		  background(Color.WHITE.getRGB());
 		  translate(width/3,height/3);
+		  
 		  RG.init(this);
 		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, resolution);
 		  //gear1 = new Gear(this);
@@ -40,7 +44,7 @@ public class NonCircApplet extends PApplet {
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
 		  System.out.println(cj.getRadialFunction());
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
-		  gear2.addTeeth(41, 15,profile);
+		  gear2.addTeeth(49, 12,profile);
 		  gear2.setColor(Color.WHITE);
 		  //gear2.setStroke(Color.BLACK);
 		 
@@ -49,10 +53,7 @@ public class NonCircApplet extends PApplet {
 		  gear1.setColor(Color.BLACK);
 		  gear1.draw();
 		  //translate(cj.getGearSeparation(),0);
-		  //gear2.draw();
-		 
-		  
-		  
+		  //gear2.draw();  
 	}
 	
 	public void output() throws IOException{
@@ -72,6 +73,7 @@ public class NonCircApplet extends PApplet {
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
 	public void draw(){
+		noSmooth();
 		translate(width/3, height/3);
 		if (loop < resolution) {
 			float angle1 = gear1.getAngles().get(loop);
@@ -79,17 +81,15 @@ public class NonCircApplet extends PApplet {
 			translate(cj.getGearSeparation(),0);
 			float angle2 = PI - gear2.getAngles().get(loop);
 			rotate(angle2);
-			//System.out.println("Loop:"+loop);
-			//System.out.println(angle1);
-			//System.out.println(angle2);
 			gear2.draw();
 			loop = (loop + 1); //% resolution;
 		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
 			gear2.setColor(Color.BLACK);
 			pushMatrix();
-			translate(cj.getGearSeparation()+30,0);
+			translate(cj.getGearSeparation()+100,0);
 			gear2.draw();
 			popMatrix();
+			pushMatrix();
 			fill(Color.BLACK.getRGB());
 			translate(0,300);
 			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
@@ -98,9 +98,45 @@ public class NonCircApplet extends PApplet {
 			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
 			translate(cj.getGearSeparation(),0);
 			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
+			popMatrix();
 			loop ++;
+			
+			LineTracer lt = new LineTracer(this);
+			lt.countColors();
+			lt.blackAndWhite();
+			lt.countColors();
+			lt.deleteTailPixels();
+			Point start = lt.findStart(10);
+			fill(Color.RED.getRGB());
+			translate(-width/3,-height/3);
+			//ellipse(start.x,start.y,10,10); //doesnt work caus of all the translations...
+			System.out.println("START:"+start.x+","+start.y+" SIZE:"+width+","+height);
+			int[][] neighbours = lt.getAllNeighbours(start.x, start.y);
+			drawPixels(neighbours, 0, 0, 30);
+			lt.trace(start);
+			System.out.println("TRACE DONE");
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
+	}
+	
+	/*** Draw an enlarged version of the pixels in the specified array. ***/
+	private void drawPixels(int[][] pixels, float x, float y, float perPixelWidth) {
+		pushMatrix();
+		for (int i = 0; i < pixels.length; i ++) {
+			pushMatrix();
+			for (int j = 0; j < pixels.length; j++) {
+				if (i == 2 && j == 2) {
+					fill(Color.RED.getRGB());
+				}else{
+					fill(pixels[i][j]);
+				}
+				rect(x,y,perPixelWidth,perPixelWidth);
+				translate(0,perPixelWidth);
+			}
+			popMatrix();
+			translate(perPixelWidth,0);			
+		}
+		popMatrix();
 	}
 	
 	/*** this draws a function***/
@@ -127,9 +163,10 @@ public class NonCircApplet extends PApplet {
 	
 	
 	/*** This rotates both gears in sync with one another***/
-	public void draw2() {
+	public void draw5() {
 		background(255);
 		translate(width/2, height/2);
+		gear2.setColor(Color.BLACK);
 		
 		pushMatrix();
 		rotate(2*PI - gear1.getAngles().get(loop));

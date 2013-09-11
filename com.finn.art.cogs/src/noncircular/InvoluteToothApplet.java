@@ -4,9 +4,8 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-import organic.LineTracer;
-
 import processing.core.PApplet;
+import utilities.LineTracer;
 
 public class InvoluteToothApplet extends PApplet {
 	float pressureAngleDegrees = 20;
