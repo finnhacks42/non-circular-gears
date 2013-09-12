@@ -11,7 +11,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.awt.Point;
+
 import processing.core.PApplet;
+import processing.core.PShape;
 import utilities.LineTracer;
 
 
@@ -102,18 +104,19 @@ public class NonCircApplet extends PApplet {
 			loop ++;
 			
 			LineTracer lt = new LineTracer(this);
-			lt.countColors();
 			lt.blackAndWhite();
-			lt.countColors();
 			lt.deleteTailPixels();
 			Point start = lt.findStart(10);
-			fill(Color.RED.getRGB());
+			PShape traced = lt.trace(start);
+			
+			
 			translate(-width/3,-height/3);
-			//ellipse(start.x,start.y,10,10); //doesnt work caus of all the translations...
-			System.out.println("START:"+start.x+","+start.y+" SIZE:"+width+","+height);
-			int[][] neighbours = lt.getAllNeighbours(start.x, start.y);
-			drawPixels(neighbours, 0, 0, 30);
-			lt.trace(start);
+			
+			
+			background(255);
+			//fill(Color.RED.getRGB());
+			shape(traced);
+			
 			System.out.println("TRACE DONE");
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.

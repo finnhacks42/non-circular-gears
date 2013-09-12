@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-
 import processing.core.PApplet;
 import processing.core.PShape;
 
@@ -15,6 +14,7 @@ public class LineTracer {
 	private PApplet app;
 	private Dimension size;
 	private int[] pixels;
+	public Point lastPoint = null;
 	private static final int OBJECT_COLOR = Color.BLACK.getRGB();
 	private static final int BACKGROUND_COLOR = Color.WHITE.getRGB();
 	
@@ -140,6 +140,10 @@ public class LineTracer {
 		}
 	}
 	
+	private boolean isEdge(Point p) {
+		return isEdge(p.x,p.y);
+	}
+	
 	private boolean isEdge(int x, int y) {
 		int loc = location(x,y);
 		int color = pixels[loc];
@@ -157,19 +161,26 @@ public class LineTracer {
 	/*** returns the next adjacent (direct or diagonal) object color pixel that is a valid edge. If no such pixel exists return null.
 	 * Assumes that the color of points already visited has been changed to a third color to avoid re-visiting pixels. ***/
 	public Point nextEdgePoint(Point p, int[] pixels) {
-		int[] shifts  = {-1,0,1};
-		for (int i : shifts) {
-			for (int j: shifts) { 
-				if (i != 0 || j != 0) {	//iterate through the 8 neighbouring pixels of p (including diagonals)
-					int x = p.x +i;
-					int y = p.y +j;
-					if (isEdge(x, y)) {
-						return new Point(x,y);
-					}
-				}
+		//we need to visit non-diagonal edges first ...	
+		Point[] direct = {new Point(p.x,p.y-1),new Point(p.x,p.y+1),new Point(p.x-1,p.y),new Point(p.x+1,p.y)};
+		Point[] diagonal = {new Point(p.x-1,p.y-1), new Point(p.x-1,p.y+1), new Point(p.x+1,p.y-1),new Point(p.x+1,p.y+1)};
+		for (Point n: direct) {
+			if (isEdge(n)){
+				return n;
+			}
+		}
+		for (Point n: diagonal) {
+			if (isEdge(n)){
+				return n;
 			}
 		}
 		return null;
+	}
+	
+	/*** return the x and y coordinates of a location l in the pixel array.***/
+	private int[] getXY(int l) {
+		int[] ans = {l%size.width,l/size.width};
+		return ans;
 	}
 	
 	/*** return the location of position x,y in the pixel array ***/
@@ -193,8 +204,9 @@ public class LineTracer {
 			}
 		}
 		return count;
-		
 	}
+	
+	
 	
 	/*** returns a 5 * 5 matrix centered on x, y and containing all its neighbours and neighbours' neighbours. ***/
 	public int[][] getAllNeighbours(int x, int y) {
@@ -214,29 +226,29 @@ public class LineTracer {
 	
 	
 	public PShape trace(Point start) {	
-		PShape shape = new PShape();
+		PShape shape = app.createShape();
 		Point nextP = null;
 		Point p  = start;
-		int pointCount = 0;
+		int vertices = 0;
+	
 		shape.beginShape();
 		while (true) {
-			System.out.println(p.x+","+p.y);
 			shape.vertex(p.x, p.y);
-			//set the color of the point at p to red - prevents backtracking
+			
+			System.out.println(p.x+","+p.y);
 			int ploc = location(p.x,p.y);
-			pixels[ploc] = Color.RED.getRGB();
-			
-			
+			pixels[ploc] = Color.RED.getRGB(); //set the color of the point at p to red - prevents backtracking
 			nextP = nextEdgePoint(p, pixels);
+			if (nextP == null){
+				if (vertices > 1 && p.distanceSq(start)<=2){
+					System.out.println("SUCCESSFUL TRACE");
+					break; //finished successfully
+				} else {
+					throw new IllegalStateException("Failed to trace closed curve, DIST FM START:"+p.distanceSq(start)+", VERTS:"+vertices);
+				}
+			}
 			p = nextP;
-			
-			if (p == null || p.equals(start)) {
-				break;
-			}
-			if (pointCount % 1000 == 0) {
-				System.out.println(pointCount);
-			}
-			pointCount ++;
+			vertices += 1;
 		}
 		shape.endShape();
 		return shape;	
