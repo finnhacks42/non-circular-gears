@@ -2,12 +2,15 @@ package model;
 
 import java.util.Comparator;
 
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+
 /*** Describes the occurance of a crime. ***/
 public class Crime {
 
 	// attributes in the raw data
 	private String offenceId;
-	private DateTime date;
+	private LocalDate date;
 	private Time dispatchTime;
 	private Time startTime;
 	private Time endTime;
@@ -25,7 +28,7 @@ public class Crime {
 
 
 
-	public Crime(String offenceId, DateTime date) {
+	public Crime(String offenceId, LocalDate date) {
 		super();
 		this.offenceId = offenceId;
 		this.date = date;
@@ -56,7 +59,7 @@ public class Crime {
 		return offenceId;
 	}
 
-	public DateTime getDate() {
+	public LocalDate getDate() {
 		return date;
 	}
 
@@ -100,7 +103,7 @@ public class Crime {
 		return category;
 	}
 
-	public void setDate(DateTime time) {
+	public void setDate(LocalDate time) {
 		this.date = time;
 	}
 

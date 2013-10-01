@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -14,17 +15,21 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import model.Crime;
-import model.DateTime;
 import model.Distance;
 import model.GeoPoint;
 import model.Time;
 
+import org.joda.time.LocalDate;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 public class Data {
-	private static final DateTime MAX_DATE = DateTime.parse("01/01/2007");
+	private static final DateTimeFormatter FMT = DateTimeFormat.forPattern("MM/dd/yyyy");
+	private static final LocalDate MAX_DATE = LocalDate.parse("01/01/2007",FMT);
 	private static final Integer MIN_AREA_POINTS = 100;
 	private HashMap<String,ArrayList<Crime>> crimes = new HashMap<String,ArrayList<Crime>>();
 	
-	private HashMap<String,TreeMap<DateTime,Integer>> eventCounts;
+	private HashMap<String,TreeMap<LocalDate,Integer>> eventCounts;
 	private Map<String,GeoPoint> centroids;
 	private Map<String,ArrayList<Distance>> nearests;
 	
@@ -32,17 +37,17 @@ public class Data {
 	
 	/*** Creates a map from the area+ucrCat -> a map from date -> num of events. 
 	 * This is used to efficiently get the count of the number of crimes of category X that occured in area A, within D days of date Dt.***/
-	private HashMap<String,TreeMap<DateTime,Integer>> calculateCounts(HashMap<String,ArrayList<Crime>> crimes) {
-		HashMap<String,TreeMap<DateTime,Integer>> eventCounts = new HashMap<String,TreeMap<DateTime,Integer>>();
+	private HashMap<String,TreeMap<LocalDate,Integer>> calculateCounts(HashMap<String,ArrayList<Crime>> crimes) {
+		HashMap<String,TreeMap<LocalDate,Integer>> eventCounts = new HashMap<String,TreeMap<LocalDate,Integer>>();
 		for (Entry<String,ArrayList<Crime>> area : crimes.entrySet()) {
 			for (Crime crime: area.getValue()) {
 				String ucr = crime.getUcrCat();
 				String key = area.getKey()+ucr;
-				DateTime dt = crime.getDate();
+				LocalDate dt = crime.getDate();
 				
-				TreeMap<DateTime,Integer> countsThisAreaAndCat = eventCounts.get(key);
+				TreeMap<LocalDate,Integer> countsThisAreaAndCat = eventCounts.get(key);
 				if (countsThisAreaAndCat == null) {
-					countsThisAreaAndCat = new TreeMap<DateTime,Integer>();
+					countsThisAreaAndCat = new TreeMap<LocalDate,Integer>();
 					countsThisAreaAndCat.put(dt, 1);
 					eventCounts.put(key, countsThisAreaAndCat);
 				} else {
@@ -57,26 +62,31 @@ public class Data {
 	
 	
 	/***
-	 * 
-	 * @param area
-	 * @param ucr
-	 * @param dt
+	 * Returns a count of the number of crimes in given area and category, for a range of periods of days back from the specified date. 
+	 * @param area the reportinarea
+	 * @param ucr the two digit category based on ucr code
+	 * @param dt the date to go back from.
 	 * @param daysback an ordered array of the number of days to go back, from smallest to largest.
 	 * @return
 	 */
-	public int[] getCrimesCount(String area,String ucr, DateTime dt, int[] daysback ) {
+	public int[] getCrimesCount(String area,String ucr, LocalDate dt, int[] daysback ) {
 		int[] result = new int[daysback.length];
 	
-		TreeMap<DateTime,Integer> counts = eventCounts.get(area+ucr);
+		TreeMap<LocalDate,Integer> counts = eventCounts.get(area+ucr);
 		if (counts == null) {return result;} // return all 0's.
-		
-		DateTime prev; // dt - daysback
 		Integer sum = 0;
-		for (Integer value: counts.subMap(prev,true, dt, false).values()){
-			sum += value;
+		LocalDate endRange = dt;
+		int indx = 0;
+		for (int day: daysback) {
+			LocalDate startRange = dt.minusDays(day);
+			for (Integer numCrimes : counts.subMap(startRange, true, endRange, false).values()) {
+				sum += numCrimes;
+			}
+			result[indx] = sum;
+			endRange = startRange;
+			indx ++;
 		}
-		
-		return sum;
+		return result;
 	}
 	
 	
@@ -134,12 +144,12 @@ public class Data {
 	/*** calculates the centroids of each reporting area as the median latitude and longitude and returns the results as a map from area to centroid.
 	 * The points considered will be those up-to the specified maxDate and with confidence > confThreshold
 	 * Only areas with more than min points will be added to the map of centroid ***/
-	private Map<String,GeoPoint> calculateCentroids(float confThreshold, DateTime maxDate, int minPoints) {
+	private Map<String,GeoPoint> calculateCentroids(float confThreshold, LocalDate maxDate, int minPoints) {
 		Map<String,GeoPoint> result = new HashMap<String,GeoPoint>();
 		for (Entry<String,ArrayList<Crime>> area: crimes.entrySet()) {
 			ArrayList<Crime> filtered = new ArrayList<Crime>();
 			for (Crime crime: area.getValue()) {
-				DateTime dt = crime.getDate();
+				LocalDate dt = crime.getDate();
 				GeoPoint geo = crime.getPoint();
 				if (dt.compareTo(maxDate) <= 0 && geo != null && geo.getConf() >= confThreshold) {
 					filtered.add(crime);
@@ -165,7 +175,7 @@ public class Data {
 		while (count < 500000) {
 			String[] fields = reader.readNext();
 			if (fields == null) {break;}
-			DateTime date = DateTime.parse(fields[3]);
+			LocalDate date = LocalDate.parse(fields[3],FMT);
 			if (date != null) {
 				Crime crime = new Crime(fields[1], date);
 				crime.setBeat(fields[8]);
