@@ -10,5 +10,7 @@
 	<classpathentry kind="lib" path="/home/finn/apps/processing-2.0.1/core/library/jogl-all.jar"/>
 	<classpathentry kind="lib" path="/home/finn/apps/processing-2.0.1/core/library/jogl-all-natives-linux-amd64.jar"/>
 	<classpathentry kind="lib" path="/home/finn/apps/processing-2.0.1/modes/java/libraries/dxf/library/dxf.jar"/>
+	<classpathentry kind="lib" path="/home/finn/apps/processing-2.0.1/modes/java/libraries/pdf/library/pdf.jar"/>
+	<classpathentry kind="lib" path="/home/finn/apps/processing-2.0.1/modes/java/libraries/pdf/library/itext.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
