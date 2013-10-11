@@ -24,6 +24,8 @@ public class LineTracer {
 		this.size = app.getSize();
 		app.loadPixels();
 		pixels = app.pixels;
+		this.blackAndWhite();
+		this.deleteTailPixels();
 	}
 	
 	
@@ -222,8 +224,11 @@ public class LineTracer {
 	}
 	
 
-	
-	
+	/*** Trace a shape, ignoring areas of less than the specified width when looking for a start point. ***/
+	public PShape trace(int ignoreWidth) {
+		Point start = findStart(ignoreWidth);
+		return trace(start);
+	}
 	
 	public PShape trace(Point start) {	
 		PShape shape = app.createShape();

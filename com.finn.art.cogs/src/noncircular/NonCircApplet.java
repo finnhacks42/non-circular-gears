@@ -14,6 +14,7 @@ import java.awt.Point;
 
 import processing.core.PApplet;
 import processing.core.PShape;
+import processing.pdf.*;
 import utilities.LineTracer;
 
 
@@ -31,10 +32,10 @@ public class NonCircApplet extends PApplet {
 	ToothProfile profile = new SquareAndAngleTooth(.5f, .3f);
 	
 	public void setup() {  
-		  size(1900,700,P2D);
+		  size(1900,800,P2D);
 		  noSmooth();
 		  background(Color.WHITE.getRGB());
-		  translate(width/3,height/3);
+		  translate(width/3,height/2);
 		  
 		  RG.init(this);
 		  gear1 = Gear.loadFromFile(new File("/home/finn/programming/hacking/non_circ_gears/blob2.svg"), this, resolution);
@@ -44,39 +45,20 @@ public class NonCircApplet extends PApplet {
 		  resolution = gear1.getAngles().size(); //there may be less angles in the loaded gear than specified in the resolution due to overhangs
 		  gear2 = new Gear(this);
 		  cj = new Conjugate(gear1.getRadii(), gear1.getAngles(), .000001f);
-		  System.out.println(cj.getRadialFunction());
 		  gear2.setProfile(cj.getRadialFunction(), cj.getMovementFunction(),true);
 		  gear2.addTeeth(49, 12,profile);
 		  gear2.setColor(Color.WHITE);
-		  //gear2.setStroke(Color.BLACK);
 		 
-		  //frameRate(0.5f);
 		  gear1.expand(10);
 		  gear1.setColor(Color.BLACK);
-		  gear1.draw();
-		  //translate(cj.getGearSeparation(),0);
-		  //gear2.draw();  
-	}
-	
-	public void output() throws IOException{
-		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/programming/hacking/non_circ_gears/data.csv"));
-		List<Float> col1 = gear1.getAngles();
-		List<Float> col2 = gear1.getRadii();
-		List<Float> col3 = gear2.getAngles();
-		List<Float> col4 = gear2.getRadii();
-		
-		for (int i = 0; i < resolution; i ++) {
-			StringBuilder s = new StringBuilder("");
-			s.append(col1.get(i)).append(",").append(col2.get(i)).append(",").append(col3.get(i)).append(",").append(col4.get(i)).append("\n");
-			out.write(s.toString());
-		}
-		out.close();
+		  gear1.draw(); 
 	}
 	
 	/*** This rotates the 2nd gear around the first which stays motionless. ***/
 	public void draw(){
 		noSmooth();
-		translate(width/3, height/3);
+		pushMatrix();
+		translate(width/3, height/2);
 		if (loop < resolution) {
 			float angle1 = gear1.getAngles().get(loop);
 			rotate(angle1);
@@ -85,39 +67,43 @@ public class NonCircApplet extends PApplet {
 			rotate(angle2);
 			gear2.draw();
 			loop = (loop + 1); //% resolution;
+			popMatrix();
 		} else if (loop == resolution) { //do the stuff we need to be able to cut ...
-			gear2.setColor(Color.BLACK);
-			pushMatrix();
-			translate(cj.getGearSeparation()+100,0);
-			gear2.draw();
-			popMatrix();
-			pushMatrix();
-			fill(Color.BLACK.getRGB());
-			translate(0,300);
-			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
-			fill(Color.WHITE.getRGB());
-			translate(BASE_PLATE_ADDITION+AXEL_WIDTH/2f,BASE_PLATE_ADDITION+AXEL_WIDTH/2f);
-			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
-			translate(cj.getGearSeparation(),0);
-			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
-			popMatrix();
-			loop ++;
+			popMatrix(); //set 0,0 back to left hand upper corner.
 			
 			LineTracer lt = new LineTracer(this);
-			lt.blackAndWhite();
-			lt.deleteTailPixels();
-			Point start = lt.findStart(10);
-			PShape traced = lt.trace(start);
-			
-			
-			translate(-width/3,-height/3);
-			
+			PShape traced = lt.trace(10);
+			traced.setStroke(Color.RED.getRGB());
+			traced.setFill(ALPHA);
 			
 			background(255);
-			//fill(Color.RED.getRGB());
-			shape(traced);
+			beginRecord(PDF,"/home/finn/programming/hacking/non_circ_gears/blog_gear.pdf");
+			ellipse(width/3,height/2,5,5); 
+			shape(traced); //how do we know where the centroid is? we knew it by the radii so just get it back again. Its at 0,0?
+			endRecord();
 			
 			System.out.println("TRACE DONE");
+			noLoop();
+			
+//			gear2.setColor(Color.BLACK);
+//			pushMatrix();
+//			translate(cj.getGearSeparation()+100,0);
+//			gear2.draw();
+//			popMatrix();
+//			pushMatrix();
+//			fill(Color.BLACK.getRGB());
+//			translate(0,300);
+//			rect(0,0,cj.getGearSeparation()+2*BASE_PLATE_ADDITION + AXEL_WIDTH,2*BASE_PLATE_ADDITION+AXEL_WIDTH);
+//			fill(Color.WHITE.getRGB());
+//			translate(BASE_PLATE_ADDITION+AXEL_WIDTH/2f,BASE_PLATE_ADDITION+AXEL_WIDTH/2f);
+//			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
+//			translate(cj.getGearSeparation(),0);
+//			ellipse(0,0,AXEL_WIDTH,AXEL_WIDTH);
+//			popMatrix();
+//			loop ++;
+			
+			
+			
 		}
 		// else do nothing but keep looping listening for s to be pressed to select the file to save to.
 	}
@@ -235,6 +221,20 @@ public class NonCircApplet extends PApplet {
 		
 	}
 
+	public void output() throws IOException{
+		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/programming/hacking/non_circ_gears/data.csv"));
+		List<Float> col1 = gear1.getAngles();
+		List<Float> col2 = gear1.getRadii();
+		List<Float> col3 = gear2.getAngles();
+		List<Float> col4 = gear2.getRadii();
+		
+		for (int i = 0; i < resolution; i ++) {
+			StringBuilder s = new StringBuilder("");
+			s.append(col1.get(i)).append(",").append(col2.get(i)).append(",").append(col3.get(i)).append(",").append(col4.get(i)).append("\n");
+			out.write(s.toString());
+		}
+		out.close();
+	}
 		
 	
 

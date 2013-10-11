@@ -40,7 +40,7 @@ public class Gear {
 			pPrev.sub(center);
 			RPoint p1 = s.getPoint(1/(float)resolution);
 			p1.sub(center);
-			RPoint axis = new RPoint(10,0);
+			RPoint axis = new RPoint(0,0); //was 10,0 value doesn't seem to make any difference. Why is this here
 			
 			boolean isClockwise = Vector.clockwise(p1, pPrev);
 			for (int i = 0; i < resolution; i++) {
@@ -126,6 +126,12 @@ public class Gear {
 		this.angles = angles;
 		this.radii = radii;
 		shape = createShape(angles, radii, null);
+	}
+	
+	/*** Set the shape of the gear from a shape. 
+	 * This takes a shape and breaks it into a series of angles and radii. ***/
+	public void setProfile(PShape shape) { 
+		//we need to somehow find a center to start at...
 	}
 	
 	/*** Set the shape of the gear as a sinusoidal radius. ***/
