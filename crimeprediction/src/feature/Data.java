@@ -1,10 +1,8 @@
 package feature;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -25,7 +23,8 @@ import org.joda.time.format.DateTimeFormatter;
 
 public class Data {
 	private static final DateTimeFormatter FMT = DateTimeFormat.forPattern("MM/dd/yyyy");
-	private static final LocalDate MAX_DATE = LocalDate.parse("01/01/2007",FMT);
+	public static final LocalDate MAX_DATE = LocalDate.parse("01/01/2007",FMT);
+	public static final LocalDate MIN_DATE = LocalDate.parse("01/01/2000",FMT);
 	private static final Integer MIN_AREA_POINTS = 100;
 	private HashMap<String,ArrayList<Crime>> crimes = new HashMap<String,ArrayList<Crime>>();
 	
@@ -89,6 +88,15 @@ public class Data {
 		return result;
 	}
 	
+	/*** return the number of crimes of the specified category, in the specified area on the specified day. ***/
+	public int getCrimeCount(String area, String ucr, LocalDate dt) {
+		TreeMap<LocalDate,Integer> counts = eventCounts.get(area+ucr);
+		if (counts == null){return 0;}
+		Integer count = counts.get(dt);
+		if (count == null) {return 0;}
+		return count;
+ 	}
+	
 	
 	/*** 
 	 * Calculates the distance from each reporting-area to all the others and stores the results.
@@ -106,7 +114,7 @@ public class Data {
 					distances.add(d);
 				}
 			}
-			Collections.sort(distances);
+			Collections.sort(distances); //are these currently sorted in the wrong order? We want the smallest distance first
 			result.put(area.getKey(), distances);
 		}
 		return result;
@@ -119,9 +127,12 @@ public class Data {
 		return crimes.get(indx);
 	}
 	
-	/*** returns a list of distances to all the other areas, ordered by distance, with the closest first. ***/
+	/*** returns a list of distances to all the other areas, ordered by distance, with the closest first.
+	 * If the area is not found, an exception will be thrown. ***/
 	public ArrayList<Distance> getNeighboursOrderedByDistance(String area) {
-		return nearests.get(area);
+		ArrayList<Distance> result = nearests.get(area);
+		if (result == null) {throw new IllegalArgumentException("Area: "+area+" not found");}
+		return result;
 	}
 	
 	/*** Returns a map from reporting area name to the position of its centroid. ***/
@@ -133,6 +144,38 @@ public class Data {
 	public List<String> getAreas(){
 		ArrayList<String> result = new ArrayList<String>();
 		result.addAll(centroids.keySet());
+		return result;
+	}
+	
+	/*** returns the top numberToReturn areas by number of crimes in the whole data set. ***/
+	public List<String> getTopAreas(int numberToReturn) {
+		if (numberToReturn > centroids.keySet().size()) {
+			throw new IllegalArgumentException("number of areas requested,"+numberToReturn+" is more than available in data set, "+crimes.keySet().size());
+		}
+		List<Map.Entry<String,Integer>> list = new ArrayList<Map.Entry<String,Integer>>();
+		for (Entry<String,ArrayList<Crime>> entry: crimes.entrySet()) {
+			if (centroids.containsKey(entry.getKey())) { //we are throwing away all reporting areas for which we failed to find a centroid.
+				Map.Entry<String,Integer> counts = new AbstractMap.SimpleEntry<String,Integer>(entry.getKey(), entry.getValue().size());
+				list.add(counts);
+			}
+		}
+		
+		// sort the current list by value in reverse order.
+		Collections.sort(list,new Comparator<Map.Entry<String,Integer>>() {
+			@Override
+			public int compare(Entry<String, Integer> o1, Entry<String, Integer> o2) {
+				if (o1.getValue() < o2.getValue()) {return 1;}
+				if (o1.getValue() > o2.getValue()) {return -1;}
+				else {return 0;}
+				
+			}
+		});
+		
+		ArrayList<String> result = new ArrayList<String>();
+		for (int i = 0; i < numberToReturn; i ++) {
+			String area = list.get(i).getKey();
+			result.add(area);
+		}
 		return result;
 	}
 	
@@ -172,7 +215,7 @@ public class Data {
 	    reader.readNext(); //read the header
 	    
 		int count = 0;
-		while (count < 500000) {
+		while (true) {//count < 50000
 			String[] fields = reader.readNext();
 			if (fields == null) {break;}
 			LocalDate date = LocalDate.parse(fields[3],FMT);
@@ -221,16 +264,21 @@ public class Data {
 	public static void main(String[] args) throws IOException {
 		Data data = new Data();
 		data.readDallas911Data(new File("/home/finn/phd/data/rawwithgeo.txt"));
-		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/phd/data/distances.txt"));
-		for (Entry<String,GeoPoint> centroid: data.getCentroids().entrySet()) {
-			for (Entry<String,GeoPoint> centroid2: data.getCentroids().entrySet()) {
-				if (centroid.getKey().compareTo(centroid2.getKey()) > 0) {
-					double dist = Math.abs(centroid.getValue().distance(centroid2.getValue()));
-					out.write(dist+"\n");
-				}
-			}
-		}
-		out.close();
+		FeatureBuilder fbuild = new FeatureBuilder(data);
+		File f = new File("/home/finn/phd/data/features_sample2_10.txt");
+		fbuild.outputFeatures(f);
+		System.out.println("DONE");
+		
+//		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/phd/data/distances.txt"));
+//		for (Entry<String,GeoPoint> centroid: data.getCentroids().entrySet()) {
+//			for (Entry<String,GeoPoint> centroid2: data.getCentroids().entrySet()) {
+//				if (centroid.getKey().compareTo(centroid2.getKey()) > 0) {
+//					double dist = Math.abs(centroid.getValue().distance(centroid2.getValue()));
+//					out.write(dist+"\n");
+//				}
+//			}
+//		}
+//		out.close();
 	}
 	
 	
