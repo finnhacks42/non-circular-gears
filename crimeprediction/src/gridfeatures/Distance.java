@@ -1,9 +1,43 @@
-package model;
+package gridfeatures;
 
 /*** This class stores the distance from an area to a reference point.
  * Comparing two instances will order them based on their distance.***/
 public class Distance implements Comparable<Distance>{
 
+	
+
+
+
+	private int area;
+	private double distance;
+	
+	public Distance(int area, double distance) {
+		this.area = area;
+		this.distance = distance;
+	}
+	
+	public String toString() {
+		return area+":"+distance;
+	}
+	
+	public int getArea() {
+		return area;
+	}
+
+	public double getDistance() {
+		return distance;
+	}
+	
+	
+
+	@Override
+	public int compareTo(Distance o) {
+		double diff = distance - o.distance;
+		if (diff < 0) {return -1;}
+		if (diff == 0) {return 0;}
+		return 1;
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -30,36 +64,6 @@ public class Distance implements Comparable<Distance>{
 				.doubleToLongBits(other.distance))
 			return false;
 		return true;
-	}
-
-
-	private int area;
-	private double distance;
-	
-	public Distance(int area, double distance) {
-		this.area = area;
-		this.distance = distance;
-	}
-	
-	public String toString() {
-		return area+":"+distance;
-	}
-	
-	public int getArea() {
-		return area;
-	}
-
-	public double getDistance() {
-		return distance;
-	}
-	
-	
-	@Override
-	public int compareTo(Distance o) {
-		double diff = distance - o.distance;
-		if (diff < 0) {return -1;}
-		if (diff == 0) {return 0;}
-		return 1;
 	}
 
 	

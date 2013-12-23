@@ -1,5 +1,7 @@
 package model;
 
+import gridfeatures.GeoPoint;
+
 import java.util.Comparator;
 
 import org.joda.time.DateTime;

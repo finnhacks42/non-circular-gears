@@ -1,6 +1,9 @@
 package feature;
 
+import gridfeatures.GeoPoint;
+
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -14,25 +17,40 @@ import java.util.TreeMap;
 
 import model.Crime;
 import model.Distance;
-import model.GeoPoint;
 import model.Time;
 
 import org.joda.time.LocalDate;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import au.com.bytecode.opencsv.CSVWriter;
+
 public class Data {
 	private static final DateTimeFormatter FMT = DateTimeFormat.forPattern("MM/dd/yyyy");
 	public static final LocalDate MAX_DATE = LocalDate.parse("01/01/2007",FMT);
 	public static final LocalDate MIN_DATE = LocalDate.parse("01/01/2000",FMT);
 	private static final Integer MIN_AREA_POINTS = 100;
-	private HashMap<String,ArrayList<Crime>> crimes = new HashMap<String,ArrayList<Crime>>();
+	private HashMap<String,ArrayList<Crime>> crimes = new HashMap<String,ArrayList<Crime>>();//maps area to a list of crimes in order of occurance.
 	
-	private HashMap<String,TreeMap<LocalDate,Integer>> eventCounts;
-	private Map<String,GeoPoint> centroids;
-	private Map<String,ArrayList<Distance>> nearests;
+	private HashMap<String,TreeMap<LocalDate,Integer>> eventCounts; //maps from area+urccat to a map from dates to counts
+	private Map<String,GeoPoint> centroids; //maps from an area label to a lat long point
+	private Map<String,ArrayList<Distance>> nearests; // maps from area labels to a list of neighbouring areas in order of distance (increasing)
 	
-	// crime of category X at distance D over period T
+
+	/*** returns the number of crimes of any type for the specified area on the specfied day. ***/
+	public int getCrimeCount(String area, LocalDate day) {
+		ArrayList<Crime> crimeList = crimes.get(area);
+		if (crimeList == null) {return 0;}
+		int count = 0;
+		for (Crime crime: crimeList) {
+			if (crime.getDate().equals(day)) {
+				count +=1;
+			} else if (crime.getDate().isAfter(day)){
+				return count;
+			}
+		}
+		return 0;
+	}
 	
 	/*** Creates a map from the area+ucrCat -> a map from date -> num of events. 
 	 * This is used to efficiently get the count of the number of crimes of category X that occured in area A, within D days of date Dt.***/
@@ -86,6 +104,20 @@ public class Data {
 			indx ++;
 		}
 		return result;
+	}
+	
+	/***
+	 * Returns the number of crimes in a given area and category over the previous daysback days.
+	 * If this calculation is to be done repeatedly for a range of daysback, use the method with this same that accepts and returns arrays of daysback as it is more efficient.
+	 * @param area
+	 * @param ucr
+	 * @param dt
+	 * @param daysback
+	 * @return
+	 */
+	public int getCrimesCount(String area, String ucr, LocalDate dt, int daysback) {
+		int[] tmp = {daysback};
+		return getCrimesCount(area, ucr, dt, tmp)[0];
 	}
 	
 	/*** return the number of crimes of the specified category, in the specified area on the specified day. ***/
@@ -265,9 +297,14 @@ public class Data {
 		Data data = new Data();
 		data.readDallas911Data(new File("/home/finn/phd/data/rawwithgeo.txt"));
 		FeatureBuilder fbuild = new FeatureBuilder(data);
-		File f = new File("/home/finn/phd/data/features_sample2_10.txt");
+		File f = new File("/home/finn/phd/data/features_50_regr_target_08.txt");
 		fbuild.outputFeatures(f);
 		System.out.println("DONE");
+		
+//		File f = new File("/home/finn/phd/data/cor.txt");
+//		Correlation c = new Correlation(data);
+//		c.output(7, 7, f); //7 day periods with no overlap
+		
 		
 //		BufferedWriter out = new BufferedWriter(new FileWriter("/home/finn/phd/data/distances.txt"));
 //		for (Entry<String,GeoPoint> centroid: data.getCentroids().entrySet()) {

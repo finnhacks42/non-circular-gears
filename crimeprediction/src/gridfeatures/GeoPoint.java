@@ -1,23 +1,19 @@
-package model;
+package gridfeatures;
 
 /*** This class represents a point in latitude and longitude. ***/
 public class GeoPoint {
 	private static final double EARTH_RADIUS = 6371000; //earths radius in m
 	private float lat;
 	private float lon;
-	private float conf;
-	
-	
-	public GeoPoint(float lat, float lon, float conf) {
+
+	public GeoPoint(float lat, float lon) {
 		super();
 		this.lat = lat;
-		this.lon = lon;
-		this.conf = conf;
+		this.lon = lon;	
 	}
 	
-	
 	public String toString(){
-		return "("+lat+","+lon+","+conf+")";
+		return "("+lat+","+lon+")";
 	}
 	
 	public float getLat() {
@@ -26,9 +22,6 @@ public class GeoPoint {
 	
 	public float getLon() {
 		return lon;
-	}
-	public float getConf() {
-		return conf;
 	}
 	
 	/*** returns the distance from this point to another in meters. 
@@ -42,6 +35,31 @@ public class GeoPoint {
 		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
 		double d = EARTH_RADIUS * c;
 		return d;
+	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + Float.floatToIntBits(lat);
+		result = prime * result + Float.floatToIntBits(lon);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		GeoPoint other = (GeoPoint) obj;
+		if (Float.floatToIntBits(lat) != Float.floatToIntBits(other.lat))
+			return false;
+		if (Float.floatToIntBits(lon) != Float.floatToIntBits(other.lon))
+			return false;
+		return true;
 	}
 	
 }

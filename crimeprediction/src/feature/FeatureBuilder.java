@@ -23,7 +23,7 @@ public class FeatureBuilder {
 	private static final String[] PROPERTY = {"06","05","07"};
 	private static final String[][] cats = {LIGHT,VIOLENT,PROPERTY};
 	private static final String[] catNames = {"light","violent","property"};
-	private static final int NUM_AREAS = 1;
+	private static final int NUM_AREAS = 50;
 	private static ArrayList<String> urcCats = new ArrayList<String>(); // a list of all the urc codes included in the groups - assumed not to be duplicates.
 	static {
 		for (String[] group: cats) {
@@ -32,9 +32,6 @@ public class FeatureBuilder {
 			}
 		}
 	}
-	
-	
-	
 	
 	
 	private ArrayList<LocalDate> allDays;
@@ -140,7 +137,11 @@ public class FeatureBuilder {
 
 	/*** current target is number of thefts. ***/
 	private int calculateTargetVariable(String area, LocalDate day) {
-		return data.getCrimeCount(area, "06", day);
+//		int count = data.getCrimeCount(area, day);
+//		if (count > 0) {return 1;}
+//		return 0;
+		
+		return data.getCrimeCount(area, "08", day);
 	}
 	
 	
