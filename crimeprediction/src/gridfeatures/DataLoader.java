@@ -83,10 +83,7 @@ public class DataLoader {
 		return result;
 	}
 	
-	/*** checks that the data structure that has been built is valid. Throws and exception if not. ***/
-	private void validate() {
-		//TODO
-	}
+	
 	
 	/*** load the specified number of lines from a file. ***/
 	public Data load(String dataFile, String areaListFile, int numlines, int lastPeroidID) throws IOException {

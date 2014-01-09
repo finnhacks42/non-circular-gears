@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class Data {
-
+	
 	private Map<CrimeKey,TreeMap<Integer,Integer>> counts = new HashMap<CrimeKey, TreeMap<Integer,Integer>>();
 	private int numPeriods;
 	private List<Integer> areas;
@@ -24,38 +24,42 @@ public class Data {
 		this.numPeriods = numPeriods;
 		this.areas = areas;
 		this.categoryNameToLevels = categoryNameToLevels;
-		Map<Integer, GeoPoint> centroids = calculateCentroids(areaLats, areaLons);
-		Map<Integer, List<Distance>> areaToDistances = createAreaNetwork(centroids);
-		this.areaNetwork = new HashMap<Integer, List<Integer>>();
-		for (Entry<Integer,List<Distance>> entry: areaToDistances.entrySet()) {
-			List<Integer> otherAreas = new ArrayList<Integer>();
-			for (Distance d: entry.getValue()) {
-				otherAreas.add(d.getArea());
+		
+		// create a very simple network where each area only has itself as a neighbour.
+		areaNetwork = new HashMap<Integer,List<Integer>>();
+		for (int id:areas) {
+			ArrayList<Integer> neighbours = new ArrayList<Integer>();
+			neighbours.add(id);
+			areaNetwork.put(id, neighbours);
+		}
+	}
+	
+	
+	/*** Creates a network of the distances between areas under the assumption that their IDs represent cellIDs.
+	 * The cells area assumed to begin at 0 in the top left corner and increase left to right and then top-bottom.
+	 * @param gridWidth the number of squares the grid is wide.
+	 */
+	public void createAreaNetworkFromGrid( int gridWidth) {
+		Map<Integer,List<Distance>> result = new HashMap<Integer,List<Distance>>();
+		for (int cellID: areas) {
+			List<Distance> distances = new ArrayList<Distance>();
+			for (int cellID2: areas) {
+				int i = cellID % gridWidth;
+				int j = cellID/gridWidth;
+				int i2 = cellID2 % gridWidth;
+				int j2 = cellID2/gridWidth;
+				double dist = Math.sqrt(Math.pow(i - i2, 2)+Math.pow(j - j2,2));
+				distances.add(new Distance(cellID2, dist));
 			}
-			areaNetwork.put(entry.getKey(), otherAreas);
+			Collections.sort(distances);
+			result.put(cellID, distances);
 		}
+		buildNetwork(result);
 	}
-	
-	/*** calculates the centroids as the median latitude and longitude for each area. ***/
-	private Map<Integer, GeoPoint> calculateCentroids(Map<Integer,List<Float>> areaLats, Map<Integer,List<Float>> areaLons){
-		Map<Integer,GeoPoint> result = new HashMap<Integer, GeoPoint>();
-		for (Integer area: areaLats.keySet()) {
-			List<Float> lats = areaLats.get(area);
-			Collections.sort(lats);
-			int medianIndx = lats.size()/2;
-			float medianLat = lats.get(medianIndx);
-			List<Float> lons = areaLons.get(area);
-			Collections.sort(lons);
-			float medianLon = lons.get(medianIndx);
-			GeoPoint centroid = new GeoPoint(medianLat, medianLon);
-			result.put(area, centroid);
-		}
-		return result;
-	}
-	
 
-	/*** return a map from each area to a list of all the other areas ordered by distance. ***/
-	private Map<Integer, List<Distance>> createAreaNetwork(Map<Integer, GeoPoint> centroids){
+	/*** Creates a network of the distances between areas based on the centroids (median lat/long) of the crime events recorded in that area.
+	 * This method will not include areas with 0 crime in the network because no centroid can be found. ***/
+	public void createAreaNetworkFromAreaCentroids(Map<Integer, GeoPoint> centroids){
 		Map<Integer,List<Distance>> result = new HashMap<Integer,List<Distance>>();
 
 		for (Entry<Integer,GeoPoint> area: centroids.entrySet()) {
@@ -71,7 +75,20 @@ public class Data {
 			Collections.sort(distances);
 			result.put(area.getKey(), distances);	
 		}
-		return result;
+		buildNetwork(result);
+		
+	}
+	
+	/*** Takes a map from the areaID to an ordered list of distances and creates the map from areaID to list of IDs ***/
+	private void buildNetwork(Map<Integer,List<Distance>> input) {
+		this.areaNetwork = new HashMap<Integer, List<Integer>>();
+		for (Entry<Integer,List<Distance>> entry: input.entrySet()) {
+			List<Integer> otherAreas = new ArrayList<Integer>();
+			for (Distance d: entry.getValue()) {
+				otherAreas.add(d.getArea());
+			}
+			areaNetwork.put(entry.getKey(), otherAreas);
+		}
 	}
 
 
@@ -137,12 +154,12 @@ public class Data {
 	
 	/*** return all the areas for which crime occurred in the data set ordered by distance to the specified one. 
 	 * The specified area itself will be the first element in the list***/
-	public List<Integer> getAreasOrderedByDistance(int area) {
+	public List<Integer> getAreasOrderedByDistance(int area) { 
 		return areaNetwork.get(area);
 	}
 	
 	/*** returns and ordered list of the closest numAreas areas to the input area.
-	 * The input area itself will be the first elment in the list. ***/
+	 * The input area itself will be the first element in the list. ***/
 	public List<Integer> getAreasOrderedByDistance(int area, int numAreas) {
 		List<Integer> all = getAreasOrderedByDistance(area);
 		if (all == null) {return null;}
