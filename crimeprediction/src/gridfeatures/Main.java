@@ -8,11 +8,11 @@ public class Main {
 	
 	public static void main(String[] args) throws IOException {
 		DataLoader loader = new DataLoader();
-		String dataFile = "/home/finn/phd/data/20140109/events_2000_2002_150.txt";
-		String areaFile = "/home/finn/phd/data/20140109/cells150.txt";
+		String dataFile = "/home/finn/phd/data/20140116/events_2000_2002_500m_div1.txt";
+		String areaFile = "/home/finn/phd/data/20140116/cells_with_crime_500m_div1.txt";
 		//TODO remember to change the number of lines, max day and grid with parameters
 		
-		Data data = loader.load(dataFile, areaFile, 571742, 1095);
+		Data data = loader.load(dataFile, areaFile,74787,1095);
 		//data.createAreaNetworkFromGrid(9);
 		
 		System.out.println("Data Loaded");
@@ -22,7 +22,7 @@ public class Main {
 		System.out.println(featureGenerator);
 		
 		
-		BufferedWriter output = new BufferedWriter(new FileWriter("/home/finn/phd/data/20140109/f_2000_2002_150.txt"));
+		BufferedWriter output = new BufferedWriter(new FileWriter("/home/finn/phd/data/20140116/f_2000_2002_500m.txt"));
 		featureGenerator.writeFull(output);
 		output.close();
 		

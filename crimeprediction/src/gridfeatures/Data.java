@@ -123,6 +123,16 @@ public class Data {
 		return result;
 	}
 	
+	/*** as for calculateCounts but normalizes by dividing by the number of days in the period to go back. ***/
+	public float[] calculateNormalizedCounts(CrimeKey key, int day, int[] daysback) {
+		int[] counts = calculateCounts(key, day, daysback);
+		float[] result = new float[counts.length];
+		for (int i = 0; i < counts.length; i ++) {
+			result[i] = (float)counts[i]/daysback[i];
+		}
+		return result;
+	}
+	
 	/*** get the count of crime under the specified key on the specified day. ***/
 	public int getCount(CrimeKey key, int day) {
 		TreeMap<Integer,Integer> events = counts.get(key);
