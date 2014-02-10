@@ -1,8 +1,13 @@
 package gridfeatures;
 
 import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.List;
+import java.util.Set;
+
+import utilities.AU;
 
 
 /*** This class generates and writes out a sparse representation of the features. ***/
@@ -16,100 +21,143 @@ import java.util.List;
 			
 
 public class FeatureWriter {
-	private static final int[] PERIODS_BACK = {1,7,14,28,365};
-	private static int FURTHEST_BACK = PERIODS_BACK[PERIODS_BACK.length - 1];
-	private static final int[] FURTHEST_BACK_A = {FURTHEST_BACK};
-	private static final int NUM_NEIGHBOURS = 1; //the number of neighbours to generate features based on. 1 will be only the area itself, <= 0 will be all areas.
-	
+	public static final String[] DATA_PARTITIONS = {"train","valid","test"};
+	public static final String TEST = "test";
+	public static final String TRAIN = "train";
+	public static final String VALIDATE = "valid";
 	private Data data;
 	private int numFeatures;
 	private int numInstances;
+	private int[] periodsToAggregateOver;
+	private  int furthestBack;
+	private String targetCategoryName;
+	private String targetCategoryValue;
+	private String smallestCategoryName;
+	private int periodsPerInstance;
+	private int totalCategoryLevels;
+	private int reportFrequency = -1;
+	private int instanceTimewindows;
 	
-	public FeatureWriter(Data data) {
+	
+	/*** 
+	 * 
+	 * @param data
+	 * @param periodsBack the periods to aggregate counts over when generating features
+	 * @param numNeighbours 
+	 * @param targetCategoryName what category is the target based on. If this is null then the target is assumed to be the total count across all categories
+	 * @param targetCategoryValue what level of the specified category is the target based on. Ignored if targetCategoryName is null.
+	 * @param periodsPerInstance the number of time periods that should be grouped together to create each instance.
+	 */
+	public FeatureWriter(Data data, int[] periodsBack, String targetCategoryName, String targetCategoryValue, int periodsPerInstance) {
 		this.data = data;
+		this.periodsToAggregateOver = periodsBack;
+		this.furthestBack = periodsToAggregateOver[periodsToAggregateOver.length - 1];
+		this.targetCategoryName = targetCategoryName;
+		this.targetCategoryValue = targetCategoryValue;
+		this.periodsPerInstance = periodsPerInstance;
+		
+		validatePeriodsBack(periodsBack);
+		
+		if (targetCategoryName != null) {
+			Set<String> targetCategoryLevelSet = data.getLevels(targetCategoryName);
+			if (targetCategoryLevelSet == null) {
+				throw new IllegalArgumentException("Specified targetCategoryName:"+targetCategoryName+" does not exist");
+			} if (!targetCategoryLevelSet.contains(targetCategoryValue)) {
+				throw new IllegalArgumentException("Specified targetCategoryValue is not a level of specified targetCategoryName");
+			}
+		}
+		
 		numFeatures = 0;
-		int numAreas = NUM_NEIGHBOURS > 0 ? NUM_NEIGHBOURS : data.getAreas().size();
-		int numAreasTimeNumPeriods =  PERIODS_BACK.length * numAreas;
+		int numAreasTimeNumPeriods =  periodsToAggregateOver.length*data.getHierachy().depth();// * numAreas;
+		int leastLevels = Integer.MAX_VALUE;
+		totalCategoryLevels = 0;
 		for (String category: data.getCategories()){
 			int numLevels = data.getLevels(category).size();
+			totalCategoryLevels += numLevels;
+			if (numLevels < leastLevels) {
+				leastLevels = numLevels;
+				smallestCategoryName = category;
+			}
 			numFeatures += numLevels * numAreasTimeNumPeriods;
 			System.out.println("Category:"+category+" levels:"+numLevels);
 		}
-		numInstances = (data.getNumPeroids() - FURTHEST_BACK) * data.getAreas().size();
+		instanceTimewindows = (int) (Math.floor((data.getNumPeroids() - furthestBack)/((float)periodsPerInstance)));
+		numInstances = instanceTimewindows * data.getAreas().size();
+		
+	}
+	
+	private void validatePeriodsBack(int[] daysback) {
+		int prev = 0;
+		for (int back: daysback) {
+			if (back <= prev) {throw new IllegalArgumentException("periods back must be specified in order from smallest to largest");}
+			prev = back;
+		}
 	}
 	
 	public String toString(){
-		return "areas:"+data.getAreas().size()+", input periods:"+data.getNumPeroids()+", output periods:"+(data.getNumPeroids()-FURTHEST_BACK)+", features:"+numFeatures+", instances:"+numInstances;
-	}
-	
-	
-	/*** writes standard VW format with cellid and count namespaces. 
-	 * @throws IOException ***/
-	public void writeVW(BufferedWriter writer) throws IOException {
-		int count = 0;
-		for (int period = FURTHEST_BACK; period < data.getNumPeroids(); period ++) {
-			for (int area: data.getAreas()) {
-				float[] features = buildFeatures(period, area);
-				int target = calculateTarget(period, area);
-				
-				writeVWInstance(area, target, features, writer);
-				
-				count ++;
-				if (count % 100000 == 0) {
-					System.out.println(count);
-				}
-			}
-		}	
-	}
-	
-	
-	private void writeVWInstance(int area, int target, float[] countFeatures, BufferedWriter writer) throws IOException {
-		StringBuilder text = new StringBuilder();
-		text.append(target).append(" |a ").append(area).append(":").append(1).append(" |b ");
-		for (int i = 0; i < countFeatures.length; i++) {
-			float f = countFeatures[i];
-			if (f != 0) {
-				text.append(i+1).append(":").append(f).append(" ");
-			}
+		LocationHierachy h = data.getHierachy();
+		StringBuilder b = new StringBuilder();	
+		for (String areaNamespace: h.getNameSpaces()) {
+			b.append("Area:").append(areaNamespace).append(", size:").append(h.size(areaNamespace)).append(" ,");
 		}
-		writer.write(text.toString());
-		writer.newLine();
+		b.append("\n");
+		b.append("Input periods:").append(data.getNumPeroids());
+		b.append(", Output periods:").append(data.getNumPeroids()-furthestBack);
+		b.append(", Periods/instance:").append(periodsPerInstance);
+		b.append("\n");
+		b.append("Target Areas:").append(data.getAreas().size());
+		b.append(", Instance timewindows:").append(instanceTimewindows);
+		b.append(", INSTANCES:").append(numInstances);
+		b.append("\n");
+		b.append("Time buckets:").append(periodsToAggregateOver.length);
+		b.append(",Total category levels:").append(totalCategoryLevels);
+		b.append(", area aggregation levels:").append(data.getHierachy().getNameSpaces().size());
+		b.append(", FEATURES:").append(numFeatures);
+		return b.toString();
 	}
 	
 	
-	
-	public void writeVWLDA(BufferedWriter writer, BufferedWriter targets) throws IOException {
-		int count = 0;
-		// one instance per peroid per area
-		for (int period = FURTHEST_BACK; period < data.getNumPeroids(); period ++) {
-			for (int area: data.getAreas()) {
-				float[] features = buildFeatures(period, area);
-				int target = calculateTarget(period, area);
-				int baseline = calculateBaseLineFeature(period, area);
-				writeLDAInstance(features, writer);
-				targets.write(String.valueOf(target));
-				targets.write(",");
-				targets.write(String.valueOf(baseline));
-				targets.newLine();
-				count ++;
-				if (count % 10000 == 0) {
-					System.out.println(count);
-				}
+	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area on the specified day ***/
+	private int calculateSinglePeriodTarget(int period, int targetArea) {
+		if (targetCategoryName == null) {
+			int total = 0;
+			for (String level: data.getLevels(smallestCategoryName)) {
+				CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, smallestCategoryName, level);
+				total += data.getCount(key, period);
 			}
-		}	
+			return total;
+		} else {
+			CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, targetCategoryName, targetCategoryValue);
+			return data.getCount(key, period);
+		}
 	}
-	
+	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area for the days from period to period + periodsPerInstance ***/
+	private float calculateTarget(int period, int target) {
+		int count = 0;
+		for (int i = 0; i < periodsPerInstance; i ++) {
+			count += calculateSinglePeriodTarget(period+i, target);
+		}
+		return count/(float)periodsPerInstance;
+	}
+
+	/***
+	 * Writes a non-sparse, csv representation of the features, with a header.
+	 * format is f1, f2, ... fn, area, target
+	 * @param writer the file to write the data to
+	 * @param reportFrequency if > 0, prints out the line number every reportFrequency instances.
+	 * @throws IOException if the specified file cannot be opened for writing.
+	 */
 	public void writeFull(BufferedWriter writer) throws IOException {
+		
 		writeFullHeader(writer);
 		int count = 0;
-		for (int period = FURTHEST_BACK; period < data.getNumPeroids(); period ++) {
+		for (int period = furthestBack; period <= data.getNumPeroids()-periodsPerInstance; period += periodsPerInstance) {
 			for (int area: data.getAreas()) {
 				float[] features = buildFeatures(period, area);
-				
-				int target = calculateTarget(period, area);
+				float target = calculateTarget(period, area);
 				writeFullInstance(features, target, area, writer);
 				count ++;
-				if (count % 10000 == 0) {
+				if (reportFrequency > 0 && count % reportFrequency == 0) {
 					System.out.println(count);
 				}
 			}
@@ -119,7 +167,8 @@ public class FeatureWriter {
 	
 	
 	
-	private void writeFullInstance(float[] features,int target,int area, BufferedWriter writer) throws IOException {
+	/*** writes one instance in non-sparce, csv format. f1, f2, ... fn, area, target. ***/
+	private void writeFullInstance(float[] features,float target,int area, BufferedWriter writer) throws IOException {
 		StringBuilder text = new StringBuilder();
 		for (Object f: features) {
 			text.append(f).append(",");
@@ -131,34 +180,91 @@ public class FeatureWriter {
 	}
 	
 	
-	private void writeLDAInstance(float[] features, BufferedWriter writer) throws IOException {
-		StringBuilder text = new StringBuilder();
+	
+	/***
+	 * 
+	 * @param trainPercentage percentage of the instanceTimewindows that should be in the training data
+	 * @param validatePercentage percentage of the instanceTimewindows that should be in the validation data
+	 * @param testPercentage percentage of the instanceTimewindows that should be used for the test data
+	 * @param path
+	 * @param filename
+	 * @throws IOException
+	 */
+	public void writeVW(double trainPercentage, double validatePercentage, String path, String filename) throws IOException {
+		if (trainPercentage + validatePercentage > 1) {
+			throw new IllegalArgumentException("train + validation percentage must be <= 1");
+		}
+		BufferedWriter[] writers = new BufferedWriter[3];
+		for (int indx = 0; indx < 3; indx ++) {
+			writers[indx] = new BufferedWriter(new FileWriter(path+filename+DATA_PARTITIONS[indx]));
+		}
+		int[] boundaries = {(int)Math.floor(trainPercentage*instanceTimewindows), (int)Math.floor((trainPercentage+validatePercentage)*instanceTimewindows),instanceTimewindows};
 		
-		text.append("| ");
-		for (int i = 0; i < features.length; i++) {
-			float f = features[i];
-			if (f != 0) {
-				text.append(i).append(":").append(f).append(" ");
+		
+		VWInstance instance = new VWInstance();
+		int count = 0;
+		int windowsCount = 0;
+		int dataPartion = 0;
+		BufferedWriter writer = writers[dataPartion];
+		int periodBoundary = boundaries[dataPartion];
+		
+		for (int period = furthestBack; period <= data.getNumPeroids()-periodsPerInstance; period += periodsPerInstance) {
+			if (windowsCount >= periodBoundary) {
+				//System.out.println("windows count:" +windowsCount+", boundary:"+periodBoundary+", instances:"+count);
+				dataPartion ++;
+				writer = writers[dataPartion];
+				periodBoundary = boundaries[dataPartion];
+			}
+			for (int area: data.getAreas()) {
+				instance.setTarget(calculateTarget(period, area));
+				instance.setNamespace("area");
+				instance.addFeature(area, 1);
+				buildAndWriteFeatures(period,area,instance,writer);
+				instance.clear();
+				count ++;
+				writer.newLine();
+//				if (count < numInstances) {
+//					writer.newLine();
+//				} else {
+//					
+//				}
+				if (reportFrequency > 0 && count % reportFrequency == 0) {
+					System.out.println(count);
+				}
+			}
+			windowsCount ++;
+		}	
+		//System.out.println("windows count:" +windowsCount+", instances:"+count);
+		for (Writer w: writers) {
+			w.close();
+		}
+	}
+	
+	
+	
+	/*** build features for the specific instance specified by a period area combination. 
+	 * @throws IOException ***/
+	private void buildAndWriteFeatures(int period, int targetArea, VWInstance instance, BufferedWriter writer) throws IOException{
+		LocationHierachy hierachy = data.getHierachy();	
+		int featureID = 1;
+		for (String areaAggregation: hierachy.getNameSpaces()) {
+			Integer area = hierachy.getTargetAreaParent(areaAggregation, targetArea);
+			for (String category: data.getCategories()) {
+				String namespace = category+areaAggregation;
+				instance.setNamespace(namespace);
+				if (area != null) { //if area is null an instance will still be written. The target value will be 0. No other features will be included but we still write the namespaces.
+					for (String level: data.getLevels(category)) {
+						CrimeKey key = new CrimeKey(areaAggregation, area, category, level);
+						float [] featureSubset = data.calculateNormalizedCounts(key, period, periodsToAggregateOver);
+						for (float feature: featureSubset) {
+							instance.addFeature(featureID, feature);
+							featureID ++;
+						}
+					}
+				}
 			}
 		}
-		if (text.length() > 4) {
-			text.deleteCharAt(text.length()-1);
-			writer.write(text.toString());
-			writer.newLine();
-		}	
-	}
-	
-	/*** returns the amount of crime in the specified area in the specified period. ***/
-	public int calculateTarget(int period, int targetArea) {
-		CrimeKey key = new CrimeKey(targetArea, "ones", "1");
-		return data.getCount(key, period);
-	}
-	
-	/*** return the amount of crime (of relevent type/category) in this cell over the longest timeperiod. ***/
-	public int calculateBaseLineFeature(int period, int targetArea) {
-		CrimeKey key = new CrimeKey(targetArea, "prem","RESIDENCE");
-		int[] result = data.calculateCounts(key, period, FURTHEST_BACK_A);
-		return result[0];
+		instance.write(writer);	
 	}
 	
 	
@@ -171,17 +277,18 @@ public class FeatureWriter {
 	private float[] buildFeatures(int period, int targetArea) {
 		float[] result = new float[numFeatures];
 		int indx = 0;
-		List<Integer> otherAreas = NUM_NEIGHBOURS <=0 ? data.getAreasOrderedByDistance(targetArea): data.getAreasOrderedByDistance(targetArea, NUM_NEIGHBOURS);
-		if (otherAreas == null) {
-			return result; 
-		}
-		for (int area: otherAreas){
+		LocationHierachy hierachy = data.getHierachy();
+		
+		for (String areaNameSpace: hierachy.getNameSpaces()){
+			Integer area = hierachy.getTargetAreaParent(areaNameSpace, targetArea);
+			if (area == null) {
+				return result;
+			}
 			for (String category: data.getCategories()){
 				for (String level: data.getLevels(category)) {
-					CrimeKey key = new CrimeKey(area, category, level);
-					float [] featureSubset = data.calculateNormalizedCounts(key, period, PERIODS_BACK);
-					//int[] featureSubset = data.calculateCounts(key, period, PERIODS_BACK);
-					indx = arrayInsert(featureSubset, result, indx);
+					CrimeKey key = new CrimeKey(areaNameSpace, area, category, level);
+					float [] featureSubset = data.calculateNormalizedCounts(key, period, periodsToAggregateOver);
+					indx = AU.arrayInsert(featureSubset, result, indx);
 				}
 			}
 		}
@@ -192,42 +299,35 @@ public class FeatureWriter {
 	
 	private void writeFullHeader(BufferedWriter writer) throws IOException {
 		
-		StringBuilder header = new StringBuilder();
-		int numAreas = NUM_NEIGHBOURS <=0 ? data.getAreas().size() :  NUM_NEIGHBOURS;
-		
-		for (int nthClosestArea = 0; nthClosestArea < numAreas; nthClosestArea ++) {
-			for (String category: data.getCategories()) {
-				for (String level: data.getLevels(category)) {
-					for (int period: PERIODS_BACK) {
-						header.append("A").append(nthClosestArea).append(category).append("_").append(level).append("_").append(period).append(",");
-					}
-				}
-			}
-		}
-		header.append("area").append(",");
-		header.append("target");
-		writer.write(header.toString());
-		writer.newLine();
+//		StringBuilder header = new StringBuilder();
+//		//int numAreas = numberOfNeighbours <=0 ? data.getAreas().size() :  numberOfNeighbours;
+//		
+//		//for (int nthClosestArea = 0; nthClosestArea < numAreas; nthClosestArea ++) {
+//			for (String category: data.getCategories()) {
+//				for (String level: data.getLevels(category)) {
+//					for (int period: periodsToAggregateOver) {
+//						header.append("A").append(nthClosestArea).append(category).append("_").append(level).append("_").append(period).append(",");
+//					}
+//				}
+//			}
+//		//}
+//		header.append("area").append(",");
+//		header.append("target");
+//		writer.write(header.toString());
+//		writer.newLine();
 	}
 	
-	/*** inserts the elements in insertion in the array target starting from the specified indx. 
-	 * Returns the index directly after the last value inserted into the target array.***/
-	private int arrayInsert(int[] insertion ,int[] target, int indx) {
-		int insertionIndx = indx;
-		for (int value: insertion) {
-			target[insertionIndx] = value;
-			insertionIndx ++;
-		}
-		return insertionIndx;
+	public int getReportFrequency() {
+		return reportFrequency;
 	}
+
+	public void setReportFrequency(int reportFrequency) {
+		this.reportFrequency = reportFrequency;
+	}
+
 	
-	private int arrayInsert(float[] insertion, float[] target, int indx) {
-		int insertionIndx = indx;
-		for (float value: insertion) {
-			target[insertionIndx] = value;
-			insertionIndx ++;
-		}
-		return insertionIndx;
-	}
+	
+	
+	
 
 }

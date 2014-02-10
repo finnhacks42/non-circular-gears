@@ -1,36 +1,40 @@
 package gridfeatures;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+
+//TODO modify this so I can make the target the # of crimes in a given day, week, etc.
+//TODO write code to transform the input in lat lon into an x, y, such that x and y are the distances in km from some reference point. Perhaps I can do this in r?
+//TODO write code so that I can make features based on nearby cells in other ways ...
+
+
 import java.io.IOException;
 
 public class Main {
 	
 	public static void main(String[] args) throws IOException {
 		DataLoader loader = new DataLoader();
-		String dataFile = "/home/finn/phd/data/20140116/events_2000_2002_500m_div1.txt";
-		String areaFile = "/home/finn/phd/data/20140116/cells_with_crime_500m_div1.txt";
-		//TODO remember to change the number of lines, max day and grid with parameters
+		String path = "/home/finn/phd/data/20140204/";
+		String dataFile = path + "events200.txt";
+		String areaFile = path + "cells200.txt";
 		
-		Data data = loader.load(dataFile, areaFile,74787,1095);
-		//data.createAreaNetworkFromGrid(9);
 		
-		System.out.println("Data Loaded");
-		System.out.println("Number of areas:"+data.getAreas().size());
+		Data data = loader.load(dataFile, areaFile,1460);
+		System.out.println("DATA LOADED");
 		
-		FeatureWriter featureGenerator = new FeatureWriter(data);
+		int[] daysback = {7,365};
+		int reportFrequency = 100000;
+		double trainPer = 1/3d; // a third of the data for training
+		double validPer = 1/3d; // a third of the data for validation - remaining 3rd will be test
+		String outputName = "fVW200";
+		
+		
+		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,null,null,1);
+		featureGenerator.setReportFrequency(reportFrequency);
 		System.out.println(featureGenerator);
 		
 		
-		BufferedWriter output = new BufferedWriter(new FileWriter("/home/finn/phd/data/20140116/f_2000_2002_500m.txt"));
-		featureGenerator.writeFull(output);
-		output.close();
+		featureGenerator.writeVW(trainPer, validPer, path, outputName);
 		
-		//BufferedWriter output = new BufferedWriter(new FileWriter("/home/finn/apps/vowpal_wabbit-7.4/finn/crime_5000_test.dat"));
-		//BufferedWriter targetsOutput = new BufferedWriter(new FileWriter("/home/finn/apps/vowpal_wabbit-7.4/finn/crime_5000_test.labels"));
-		//featureGenerator.writeSparce(output, targetsOutput);
-		//output.close();
-		//targetsOutput.close();
+		
 		System.out.println("DONE");
 	}
 

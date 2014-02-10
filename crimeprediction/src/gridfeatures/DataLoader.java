@@ -1,12 +1,11 @@
 package gridfeatures;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -15,40 +14,37 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
-import model.Crime;
-
-import org.joda.time.LocalDate;
-
-import utilities.SU;
+import utilities.Counter;
+//TODO extend to allow multiple group labels in terms of area. 
 
 
 /*** This class loads crime data in a format where there is one row per crime, and transforms it into features.
- *  The data to be loaded must contain a latitude column, a longitude column, an integer period column (equivalent to a binning of the events through time),
- *  and an integer areaID column (equivalent to a binning of the event in space),  in that order.
- *  Any additional columns will be assumed to be 'category' columns.
+ *  The file must be | separated and the first line is assumed to consist of a header containing column names
+ *  lat, lon, period and area are compulsory.
+ *  There can be any number of additional area fields which should be named with names beginning with area
+ *  Any other fields will assumed to represent categories.
+ *  
  *  The latitude and longitude columns must contain decimals, the period and areaID column must be an integer starting from 0, and the category columns can be strings
  *  Counts will be produced separately for each category column. 
- *  The file must be | separated and the first line is assumed to consist of a header containing column names
+ *  
  ***/
 public class DataLoader {
+	private static final String AREA_PREFIX = "area";
+	private static final String LAT = "lat";
+	private static final String LON = "lon";
+	private static final String PERIOD = "period";
+	public static final String AREA = "area"; //the target will be grouped by this area.
+	private static final List<String> REQUIRED = Arrays.asList(new String [] {LAT,LON,PERIOD,AREA});
 	
 	private int numCategories;
-	private float[] lat;
-	private float[] lon;
-	private int[] period;
-	private int[] area;
-
-	private String[] categoryNames; //lets us lookup a categoryName from its indx.
-	
-	private Map<Integer,List<String>> categories = new HashMap<Integer,List<String>>(); // maps from the index of the category column to the list of values
 	private Map<String,Integer> categoryNameToIndex = new HashMap<String,Integer>(); //maps from the name of a category column to its column index
-	private Map<Integer,Set<String>> categoryLevels = new HashMap<Integer,Set<String>>(); //maps from category index to list of all levels for that category
-	private Map<Integer,List<Float>> areaLats = new HashMap<Integer, List<Float>>(); // maps from areaID to list of all latitudes of crimes
-	private Map<Integer, List<Float>> areaLongs = new HashMap<Integer,List<Float>>(); // maps from areaID to list of all longitude of crimes
 	private Map<CrimeKey,TreeMap<Integer,Integer>> counts = new HashMap<CrimeKey, TreeMap<Integer,Integer>>(); // maps (area, category, category-level) to a sorted map from period to num-crimes
 	private List<Integer> areaList = new ArrayList<Integer>(); // a list of all the area IDs under consideration in the study. Not all may actually contain crime and thus appear in the data file.
+	private Counter<Integer> periodCounts = new Counter<Integer>();
 	private int numDays; //the number of periods, here a day may be a day or a watch, etc
-	
+	private Map<String, Integer> nameToIndx = new HashMap<String,Integer>(); //maps column names to column indx.
+	private Map<String,Integer> areaToIndx = new HashMap<String,Integer>(); //maps additional area columns to their indexes.
+
 	
 	
 	
@@ -84,86 +80,115 @@ public class DataLoader {
 	}
 	
 	
+	/*** reads the header and sets up all the info we need. 
+	 * @throws IOException ***/
+	private void readHeader(BufferedReader reader) throws IOException {
+		String header = reader.readLine();
+		String [] headerFields = header.split("\\|");
+		int indx = 0;
+		for (String s: headerFields) {
+			nameToIndx.put(s,indx);
+			if (s.startsWith(AREA_PREFIX)) {
+				areaToIndx.put(s, indx);
+			} else if (!REQUIRED.contains(s)) {
+				categoryNameToIndex.put(s, indx);
+			}
+			indx ++;
+		}
+		for (String required: REQUIRED) {
+			if (!nameToIndx.containsKey(required)) {
+				throw new IllegalArgumentException("File missing required column: "+required);
+			}
+		}
+		this.numCategories = categoryNameToIndex.size();
+		if (this.numCategories <= 0) {
+			throw new IllegalArgumentException("The input file contains no category columns");
+		}
 	
-	/*** load the specified number of lines from a file. ***/
-	public Data load(String dataFile, String areaListFile, int numlines, int lastPeroidID) throws IOException {
+		
+	}
+	
+	
+	/*** load the specified number of lines from a file. Periods are assumed to begin at 0. ***/
+	public Data load(String dataFile, String areaListFile, int lastPeroidID) throws IOException {
 		this.areaList = readAreaFile(areaListFile);
 		this.numDays = lastPeroidID;
 		
+		Map<String, Set<String>> categoryNameToLevels = new HashMap<String,Set<String>>();
+		LocationHierachy heirachy = new LocationHierachy();
+		
 		BufferedReader reader = new BufferedReader(new FileReader(dataFile));
-		String header = reader.readLine();
-		String [] headerFields = header.split("\\|"); 
-		this.numCategories = headerFields.length - 4; //there are 4 fixed fields; lat, long, period, area
+		try {
 		
-		if (numCategories < 0) {
-			reader.close();
-			throw new IllegalArgumentException("The input file contains insufficient columns");
-		}
-		
-		this.categoryNames = new String[numCategories];
-		for (int i = 4; i < headerFields.length; i ++) {
-			int catIndx = i - 4;
-			String catName = headerFields[i];
-			categoryNameToIndex.put(catName, catIndx);
-			categoryNames[catIndx] = catName;	
-		}
-		
-		
-		lat = new float[numlines];
-		lon = new float[numlines];
-		period = new int[numlines];
-		area = new int[numlines];
-		
-		int lineNumber = 0;
-		while (lineNumber < numlines) {
-			String line = reader.readLine();
-			if (line == null) {break;}
-			//System.out.println(line);
-			String[] data = line.split("\\|");
-			//System.out.println(Arrays.toString(data));
-			float la =  Float.valueOf(data[0]);
-			float lo =  Float.valueOf(data[1]);
-			int p = Integer.valueOf(data[2]);
-			int a = Integer.valueOf(data[3]);
-			lat[lineNumber] = la;
-			lon[lineNumber] = lo;
-			period[lineNumber] = p;
-			area[lineNumber] = a;
-			
-			if (!areaLats.containsKey(a)) { areaLats.put(a, new ArrayList<Float>());}
-			areaLats.get(a).add(la);
-			
-			if (!areaLongs.containsKey(a)) {areaLongs.put(a , new ArrayList<Float>());}
-			areaLongs.get(a).add(lo);
-			
-			for (int i = 0; i < numCategories; i ++) {
-				String categoryValue = data[4+i];
-				String categoryName = categoryNames[i];
-				CrimeKey key = new CrimeKey(a, categoryName, categoryValue);
-				incrementCount(key, p);			
-				if (!categories.containsKey(i)){
-					categories.put(i, new ArrayList<String>());
-					categoryLevels.put(i, new HashSet<String>());
+			readHeader(reader);
+						
+			while (true) {
+				String line = reader.readLine();
+				if (line == null) {break;}
+				String[] data = line.split("\\|");
+				//float lat =  Float.valueOf(data[nameToIndx.get(LAT)]);
+				//float lon =  Float.valueOf(data[nameToIndx.get(LON)]);
+				int period = Integer.valueOf(data[nameToIndx.get(PERIOD)]);
+				periodCounts.increment(period);
+
+				int area = Integer.valueOf(data[nameToIndx.get(AREA)]);
+				if (!areaList.contains(area)) {
+					throw new IllegalArgumentException("Area "+area+" encountered in data but not in area list");
 				}
-				categories.get(i).add(categoryValue);
-				categoryLevels.get(i).add(categoryValue);
+				
+				
+				for (Entry<String,Integer> a: areaToIndx.entrySet()) {
+					int areaID = Integer.valueOf(data[areaToIndx.get(a.getKey())]);
+					heirachy.add(area, areaID, a.getKey());	
+				}
+				
+				for (Entry<String,Integer> c : categoryNameToIndex.entrySet()) {
+					String categoryValue = data[c.getValue()];
+					Set<String> levels = categoryNameToLevels.get(c.getKey());
+					if (levels == null) {
+						levels = new HashSet<String>();
+						categoryNameToLevels.put(c.getKey(), levels);
+					}
+					levels.add(categoryValue);
+					
+					for (Entry<String,Integer> a: areaToIndx.entrySet()) {
+						int areaID = Integer.valueOf(data[areaToIndx.get(a.getKey())]);
+						CrimeKey key = new CrimeKey(a.getKey(), areaID, c.getKey(), categoryValue);
+						incrementCount(key, period);	
+					}	
+				}
 			}
 			
-			lineNumber ++;
+		} finally {
+			reader.close();
 		}
 		
-		if (lineNumber < numlines) {
-			System.out.println("Warning:less lines in file than specified to read. Asked for:"+numlines+" read:"+lineNumber);
-		} 
-		reader.close();
 		
+		int lastPeriodInData = Collections.max(periodCounts.getKeys());
+		int firstPeriodInData = Collections.min(periodCounts.getKeys());
 		
-		Map<String, Set<String>> categoryNameToLevels = new HashMap<String,Set<String>>();
-		for (Entry<String,Integer> entry: categoryNameToIndex.entrySet()) {
-			categoryNameToLevels.put(entry.getKey(), categoryLevels.get(entry.getValue()));
+		if (lastPeriodInData > lastPeroidID) {
+			throw new IllegalArgumentException("Period "+lastPeriodInData +" in data > specified last period:"+lastPeroidID);
 		}
-		 
-		Data data = new Data(counts,numDays, areaList, categoryNameToLevels, areaLats, areaLongs);
+		
+		if (firstPeriodInData < 0) {
+			throw new IllegalArgumentException("Period "+firstPeriodInData +" < 0");
+		}
+		
+		List<Integer> missing = new ArrayList<Integer>();
+		for (int p = 0; p <= lastPeroidID; p ++) {
+			if (!periodCounts.containsKey(p)) {
+				missing.add(p);
+			}
+		}
+		if (missing.size() > 0 ) {
+			String message = "WARNING: no events for "+missing.size() +" periods in the data";
+			if (missing.size() < 20) {message += " "+missing;}
+			System.out.println(message);
+		}
+		
+		Data data = new Data(counts,numDays, areaList, categoryNameToLevels,heirachy);
+		
 		return data;
 	}
 	

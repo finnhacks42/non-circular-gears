@@ -4,10 +4,6 @@ package gridfeatures;
  * Comparing two instances will order them based on their distance.***/
 public class Distance implements Comparable<Distance>{
 
-	
-
-
-
 	private int area;
 	private double distance;
 	

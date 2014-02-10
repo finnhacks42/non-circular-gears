@@ -1,5 +1,6 @@
 package utilities;
 
+/*** this class contains static string utilities. ***/
 public class SU {
 	
 	/*** Returns a String consisting of the toString representation of each object in the input separated by the specified separator. ***/
