@@ -18,6 +18,30 @@ public class LocationHierachy {
 	private Map<LocationKey,Integer> hierachy = new HashMap<LocationKey,Integer>();
 	private Map<String,Set<Integer>> namespaces = new HashMap<String,Set<Integer>>();
 	
+	/*** Creates a location hierachy by assuming that the ids of the areas specify what their parents are
+	 * For example if the ids are 123, 145, 235 and 2 namespaces are requested, then it is assumed that 123 has parent 1 in 0th NS and parent 2 in 1th namespace.
+	 * @param areas
+	 * @param numNamespaces
+	 * @return
+	 */
+	public static LocationHierachy buildFromAreaDigits(int[] areas, int numNamespaces) {
+		LocationHierachy hierachy = new LocationHierachy();
+		for (int i : areas) {
+			String s = String.valueOf(i);
+			hierachy.add(i, i, DataLoader.AREA);
+			for (int n = 0; n < numNamespaces; n ++) {
+				if (s.length() < n) {
+					throw new IllegalArgumentException("All areasIds must be at least the required number of namespaces long");
+				}
+				int parentID = Integer.valueOf(s.substring(n, n+1));
+				String parentNS = DataLoader.AREA_PREFIX+n+"th";
+				hierachy.add(i, parentID, parentNS);
+			}
+		}
+		
+		return hierachy;
+	}
+	
 	/*** Add a target area, specifying its parent in the given namespace. Calling this function multiple times with the same input will not change the results.
 	 * @param targetArea the new primary area to add.
 	 * @param the containing area of this targetArea in the given namespace

@@ -21,8 +21,7 @@ public interface DataI {
 	public abstract int[] calculateCounts(CrimeKey key, int day, int[] daysback);
 
 	/*** as for calculateCounts but normalizes by dividing by the number of days in the period to go back. ***/
-	public abstract float[] calculateNormalizedCounts(CrimeKey key, int day,
-			int[] daysback);
+	public abstract float[] calculateNormalizedCounts(CrimeKey key, int day, int[] daysback);
 
 	/*** get the count of crime under the specified key on the specified day. ***/
 	public abstract int getCount(CrimeKey key, int day);

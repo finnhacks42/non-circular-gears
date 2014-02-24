@@ -66,6 +66,7 @@ public class DataLoader {
 		readHeader(headerFields);
 	}
 	
+	
 	private void readHeader(String[] headerFields) {
 		int indx = 0;
 		for (String s: headerFields) {
@@ -90,6 +91,7 @@ public class DataLoader {
 	
 
 	private void loadRow(DataI dataStore, String[] data) {
+		//System.out.println("Loading row: "+Arrays.toString(data));
 		int period = Integer.valueOf(data[nameToIndx.get(PERIOD)]);
 		int area = Integer.valueOf(data[nameToIndx.get(AREA)]);
 		
@@ -150,8 +152,13 @@ public class DataLoader {
 	}
 	
 	/*** load the data from memory. Useful for generating test instances of the Data object. ***/
-	public void load(List<String[]> rows, String[] header, List<Integer> areas, int lastPeriodID,DataI dataStore) {
-		dataStore.setAreas(areas);
+	public void load(List<String[]> rows, String[] header, int[] areas, int lastPeriodID,DataI dataStore) {
+		List<Integer> areaList = new ArrayList<Integer>();
+		for (int a: areas) {
+			areaList.add(a);
+		}
+		
+		dataStore.setAreas(areaList);
 		dataStore.setNumPeriods(lastPeriodID);
 		
 		readHeader(header);

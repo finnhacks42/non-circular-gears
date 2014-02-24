@@ -120,7 +120,8 @@ public class FeatureWriter {
 			b.append("Area:").append(areaNamespace).append(", size:").append(h.size(areaNamespace)).append(" ,");
 		}
 		b.append("\n");
-		b.append("Input periods:").append(data.getNumPeroids());
+		b.append("First period:").append(furthestBack);
+		b.append(", Input periods:").append(data.getNumPeroids());
 		b.append(", Output periods:").append(data.getNumPeroids()-furthestBack);
 		b.append(", Periods/instance:").append(periodsPerInstance);
 		b.append("\n");

@@ -13,8 +13,8 @@ public class Main {
 	public static void main(String[] args) throws IOException, InvalidDataStoreException {
 		DataLoader loader = new DataLoader();
 		String path = "/home/finn/phd/data/20140220/";
-		String dataFile = path + "events1000_bc.txt";
-		String areaFile = path + "cells1000.txt";
+		String dataFile = path + "events200debug.txt";
+		String areaFile = path + "cells200debug.txt";
 		
 		DataI data = new Data();
 		
@@ -23,9 +23,9 @@ public class Main {
 		
 		int[] daysback = {7,365};
 		int reportFrequency = 100000;
-		double trainPer = 4/6d; // % of the data for training
-		double validPer = 1/6d; // % of the data for validation - remaining % will be test
-		String outputName = "fVW1000bc";
+		double trainPer = 1;//4/6d; // % of the data for training
+		double validPer = 0;//1/6d; // % of the data for validation - remaining % will be test
+		String outputName = "debug";
 		boolean labelArea = true;
 		
 		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,"crime","burglary",1,labelArea);
