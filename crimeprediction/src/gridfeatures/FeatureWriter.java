@@ -4,7 +4,9 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import utilities.AU;
@@ -21,15 +23,19 @@ import utilities.AU;
 			
 
 public class FeatureWriter {
+	public static final int FORMAT_VW = 1;
+	public static final int FORMAT_MATRIXMARKET = 2;
+	public static final int FORMAT_ROW = 3;
 	public static final String[] DATA_PARTITIONS = {"train","valid","test"};
 	public static final String TEST = "test";
 	public static final String TRAIN = "train";
 	public static final String VALIDATE = "valid";
-	private Data data;
+
+	private DataI data;
 	private int numFeatures;
 	private int numInstances;
 	private int[] periodsToAggregateOver;
-	private  int furthestBack;
+	private  int furthestBack = 0;
 	private String targetCategoryName;
 	private String targetCategoryValue;
 	private String smallestCategoryName;
@@ -37,6 +43,8 @@ public class FeatureWriter {
 	private int totalCategoryLevels;
 	private int reportFrequency = -1;
 	private int instanceTimewindows;
+	private boolean labelArea = true;
+	private Map<Integer,Integer> areaToAreaID = new HashMap<Integer,Integer>(); //maps the areas to a unique id between 1 and num_areas
 	
 	
 	/*** 
@@ -47,14 +55,25 @@ public class FeatureWriter {
 	 * @param targetCategoryName what category is the target based on. If this is null then the target is assumed to be the total count across all categories
 	 * @param targetCategoryValue what level of the specified category is the target based on. Ignored if targetCategoryName is null.
 	 * @param periodsPerInstance the number of time periods that should be grouped together to create each instance.
+	 * @throws InvalidDataStoreException 
 	 */
-	public FeatureWriter(Data data, int[] periodsBack, String targetCategoryName, String targetCategoryValue, int periodsPerInstance) {
+	public FeatureWriter(DataI data, int[] periodsBack, String targetCategoryName, String targetCategoryValue, int periodsPerInstance, boolean labelArea) throws InvalidDataStoreException {
 		this.data = data;
+		data.validate();
+		this.labelArea = labelArea;
 		this.periodsToAggregateOver = periodsBack;
-		this.furthestBack = periodsToAggregateOver[periodsToAggregateOver.length - 1];
+		if (periodsToAggregateOver.length > 0) {
+			this.furthestBack = periodsToAggregateOver[periodsToAggregateOver.length - 1];
+		}
 		this.targetCategoryName = targetCategoryName;
 		this.targetCategoryValue = targetCategoryValue;
 		this.periodsPerInstance = periodsPerInstance;
+		
+		int id = 1;
+		for (Integer area: data.getAreas()) {
+			areaToAreaID.put(area, id);
+			id ++;
+		}
 		
 		validatePeriodsBack(periodsBack);
 		
@@ -140,45 +159,6 @@ public class FeatureWriter {
 		return count/(float)periodsPerInstance;
 	}
 
-	/***
-	 * Writes a non-sparse, csv representation of the features, with a header.
-	 * format is f1, f2, ... fn, area, target
-	 * @param writer the file to write the data to
-	 * @param reportFrequency if > 0, prints out the line number every reportFrequency instances.
-	 * @throws IOException if the specified file cannot be opened for writing.
-	 */
-	public void writeFull(BufferedWriter writer) throws IOException {
-		
-		writeFullHeader(writer);
-		int count = 0;
-		for (int period = furthestBack; period <= data.getNumPeroids()-periodsPerInstance; period += periodsPerInstance) {
-			for (int area: data.getAreas()) {
-				float[] features = buildFeatures(period, area);
-				float target = calculateTarget(period, area);
-				writeFullInstance(features, target, area, writer);
-				count ++;
-				if (reportFrequency > 0 && count % reportFrequency == 0) {
-					System.out.println(count);
-				}
-			}
-		}	
-	}
-	
-	
-	
-	
-	/*** writes one instance in non-sparce, csv format. f1, f2, ... fn, area, target. ***/
-	private void writeFullInstance(float[] features,float target,int area, BufferedWriter writer) throws IOException {
-		StringBuilder text = new StringBuilder();
-		for (Object f: features) {
-			text.append(f).append(",");
-		}
-		text.append(area).append(",");
-		text.append(target);
-		writer.write(text.toString());
-		writer.newLine();
-	}
-	
 	
 	
 	/***
@@ -190,7 +170,7 @@ public class FeatureWriter {
 	 * @param filename
 	 * @throws IOException
 	 */
-	public void writeVW(double trainPercentage, double validatePercentage, String path, String filename) throws IOException {
+	public void write(double trainPercentage, double validatePercentage, String path, String filename, int format) throws IOException {
 		if (trainPercentage + validatePercentage > 1) {
 			throw new IllegalArgumentException("train + validation percentage must be <= 1");
 		}
@@ -200,53 +180,103 @@ public class FeatureWriter {
 		}
 		int[] boundaries = {(int)Math.floor(trainPercentage*instanceTimewindows), (int)Math.floor((trainPercentage+validatePercentage)*instanceTimewindows),instanceTimewindows};
 		
+		Instance instance = null;
+		if (FORMAT_VW == format) {
+			instance = new VWInstance();
+		} else if (FORMAT_MATRIXMARKET == format) {
+			instance = new MatrixMarketInstance();
+		} else if (FORMAT_ROW == format) {
+			instance = rowInstance();
+		} else {
+			throw new IllegalArgumentException("Unknown format requested");
+		}
 		
-		VWInstance instance = new VWInstance();
+		
+		int numColumns = labelArea ? data.getAreas().size() + numFeatures + 1: numFeatures + 1; //note +1 is for the target variable
+		
 		int count = 0;
 		int windowsCount = 0;
 		int dataPartion = 0;
 		BufferedWriter writer = writers[dataPartion];
 		int periodBoundary = boundaries[dataPartion];
-		
+		instance.setWriter(writer,numColumns);
+		float targetTotal = 0f;
 		for (int period = furthestBack; period <= data.getNumPeroids()-periodsPerInstance; period += periodsPerInstance) {
 			if (windowsCount >= periodBoundary) {
-				//System.out.println("windows count:" +windowsCount+", boundary:"+periodBoundary+", instances:"+count);
 				dataPartion ++;
 				writer = writers[dataPartion];
 				periodBoundary = boundaries[dataPartion];
+				instance.finishWriter();
+				instance.setWriter(writer,numColumns);
 			}
 			for (int area: data.getAreas()) {
-				instance.setTarget(calculateTarget(period, area));
-				instance.setNamespace("area");
-				instance.addFeature(area, 1);
-				buildAndWriteFeatures(period,area,instance,writer);
-				instance.clear();
+				float target = calculateTarget(period, area);
+				targetTotal += target;
+				instance.setTarget(target);
+				buildAndWriteFeatures(period,area,instance,writer,labelArea);
+				instance.endInstanceAndclear();
 				count ++;
-				writer.newLine();
-//				if (count < numInstances) {
-//					writer.newLine();
-//				} else {
-//					
-//				}
 				if (reportFrequency > 0 && count % reportFrequency == 0) {
 					System.out.println(count);
 				}
 			}
 			windowsCount ++;
-		}	
+		}
+		instance.finishWriter();
 		//System.out.println("windows count:" +windowsCount+", instances:"+count);
 		for (Writer w: writers) {
 			w.close();
 		}
+		System.out.println("Target total:"+targetTotal);
 	}
 	
+	
+	private RowInstance rowInstance() {
+		String[] header = null;
+	
+		int indx = 0;
+		if (labelArea) {
+			header = new String[numFeatures + 2];
+			header[1] = "area";
+			indx = 2;
+		} else {
+			header = new String[numFeatures + 1];
+			indx = 1;
+		}
+		header[0]="target";
+		LocationHierachy hierachy = data.getHierachy();
+		
+		for (String areaAggregation: hierachy.getNameSpaces()) {
+			for (String category:data.getCategories()) {
+				for (String level: data.getLevels(category)) {
+					for (int period: periodsToAggregateOver) {
+						String columnName = areaAggregation+category+level+period;
+						header[indx] = columnName;
+						indx ++;
+					}
+				}
+				
+			}
+		}
+		
+		return new RowInstance(header,this.labelArea);
+	}
 	
 	
 	/*** build features for the specific instance specified by a period area combination. 
 	 * @throws IOException ***/
-	private void buildAndWriteFeatures(int period, int targetArea, VWInstance instance, BufferedWriter writer) throws IOException{
+	private void buildAndWriteFeatures(int period, int targetArea, Instance instance, BufferedWriter writer, boolean labelArea) throws IOException{
 		LocationHierachy hierachy = data.getHierachy();	
 		int featureID = 1;
+		if (labelArea) {
+			if (labelArea) {
+				instance.setNamespace(DataLoader.AREA);
+				int areaID = areaToAreaID.get(targetArea);
+				instance.addFeature(areaID, 1);
+			}
+			featureID += areaToAreaID.size();
+		}
+		
 		for (String areaAggregation: hierachy.getNameSpaces()) {
 			Integer area = hierachy.getTargetAreaParent(areaAggregation, targetArea);
 			for (String category: data.getCategories()) {
@@ -264,7 +294,7 @@ public class FeatureWriter {
 				}
 			}
 		}
-		instance.write(writer);	
+		
 	}
 	
 	
@@ -296,26 +326,6 @@ public class FeatureWriter {
 	}
 	
 	
-	
-	private void writeFullHeader(BufferedWriter writer) throws IOException {
-		
-//		StringBuilder header = new StringBuilder();
-//		//int numAreas = numberOfNeighbours <=0 ? data.getAreas().size() :  numberOfNeighbours;
-//		
-//		//for (int nthClosestArea = 0; nthClosestArea < numAreas; nthClosestArea ++) {
-//			for (String category: data.getCategories()) {
-//				for (String level: data.getLevels(category)) {
-//					for (int period: periodsToAggregateOver) {
-//						header.append("A").append(nthClosestArea).append(category).append("_").append(level).append("_").append(period).append(",");
-//					}
-//				}
-//			}
-//		//}
-//		header.append("area").append(",");
-//		header.append("target");
-//		writer.write(header.toString());
-//		writer.newLine();
-	}
 	
 	public int getReportFrequency() {
 		return reportFrequency;

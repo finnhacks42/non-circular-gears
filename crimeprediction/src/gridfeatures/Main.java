@@ -10,30 +10,30 @@ import java.io.IOException;
 
 public class Main {
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InvalidDataStoreException {
 		DataLoader loader = new DataLoader();
-		String path = "/home/finn/phd/data/20140204/";
-		String dataFile = path + "events200.txt";
-		String areaFile = path + "cells200.txt";
+		String path = "/home/finn/phd/data/20140220/";
+		String dataFile = path + "events1000_bc.txt";
+		String areaFile = path + "cells1000.txt";
 		
+		DataI data = new Data();
 		
-		Data data = loader.load(dataFile, areaFile,1460);
+		loader.load(dataFile, areaFile,2556, data);
 		System.out.println("DATA LOADED");
 		
 		int[] daysback = {7,365};
 		int reportFrequency = 100000;
-		double trainPer = 1/3d; // a third of the data for training
-		double validPer = 1/3d; // a third of the data for validation - remaining 3rd will be test
-		String outputName = "fVW200";
+		double trainPer = 4/6d; // % of the data for training
+		double validPer = 1/6d; // % of the data for validation - remaining % will be test
+		String outputName = "fVW1000bc";
+		boolean labelArea = true;
 		
-		
-		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,null,null,1);
+		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,"crime","burglary",1,labelArea);
 		featureGenerator.setReportFrequency(reportFrequency);
+		
 		System.out.println(featureGenerator);
 		
-		
-		featureGenerator.writeVW(trainPer, validPer, path, outputName);
-		
+		featureGenerator.write(trainPer, validPer, path, outputName,FeatureWriter.FORMAT_VW);
 		
 		System.out.println("DONE");
 	}

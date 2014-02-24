@@ -18,6 +18,10 @@ public class LocationHierachy {
 	private Map<LocationKey,Integer> hierachy = new HashMap<LocationKey,Integer>();
 	private Map<String,Set<Integer>> namespaces = new HashMap<String,Set<Integer>>();
 	
+	/*** Add a target area, specifying its parent in the given namespace. Calling this function multiple times with the same input will not change the results.
+	 * @param targetArea the new primary area to add.
+	 * @param the containing area of this targetArea in the given namespace
+	 * @param the namespace/level of aggregation of the parent area ID.***/
 	public void add(int targetArea, int parentArea, String parentNamespace) {
 		LocationKey key = new LocationKey(targetArea, parentNamespace);
 		hierachy.put(key, parentArea);
