@@ -89,8 +89,39 @@ public class DataLoader {
 		}
 	}
 	
+	/*** Checks that the target constraint has an even number of elements and that the categories specified exist in the data. ***/
+	private void validateTargetConstraints(String ... targetConstraints) {
+		if (targetConstraints.length % 2 != 0) {
+			throw new IllegalArgumentException("constraints must be specified in category, value pairs");
+		}
+		System.out.println(Arrays.toString(targetConstraints));
+		for (int i = 0; i < targetConstraints.length-1; i+=2) {
+			String category = targetConstraints[i];
+			if (!categoryNameToIndex.containsKey(category)){
+				throw new IllegalArgumentException("Unknown category:"+category+ " in target specification. Categories are:"+categoryNameToIndex.keySet());
+			}	
+		}
+	}
 
-	private void loadRow(DataI dataStore, String[] data) {
+	private boolean targetConstraintsMatched(String[] data, String ... targetConstraints) {
+		if (targetConstraints == null) {return true;}
+		for (int i = 0; i < targetConstraints.length-1; i+=2) {
+			String category = targetConstraints[i];
+			String targetValue = targetConstraints[i+1];
+			Integer column = categoryNameToIndex.get(category);
+			if (column == null) {
+				throw new IllegalArgumentException("Category: "+category+" not found:"+categoryNameToIndex.keySet());
+			}
+			
+			String value = data[column];
+			if (!targetValue.equals(value)){
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	private void loadRow(DataI dataStore, String[] data, String ... targetConstraints) {
 		//System.out.println("Loading row: "+Arrays.toString(data));
 		int period = Integer.valueOf(data[nameToIndx.get(PERIOD)]);
 		int area = Integer.valueOf(data[nameToIndx.get(AREA)]);
@@ -100,6 +131,12 @@ public class DataLoader {
 		if (!dataStore.getAreas().contains(area)) {
 			throw new IllegalArgumentException("Area "+area+" encountered in data but not in area list");
 		}
+		
+		// check if event matches target.
+		if (targetConstraintsMatched(data, targetConstraints)){
+			dataStore.incrementTarget(area, period);
+		}
+		
 		
 		// add the area and parent(s) to the location hierachy
 		for (Entry<String,Integer> a: areaToIndx.entrySet()) {
@@ -130,19 +167,22 @@ public class DataLoader {
 	
 	/*** load data from a file. Periods are assumed to begin at 0. ***/
 	
-	public void load(String dataFile, String areaListFile, int lastPeriodID, DataI dataStore) throws IOException {
+	public void load(String dataFile, String areaListFile, int lastPeriodID, DataI dataStore, String ... targetConstraints) throws IOException {
 		List<Integer> areas = readAreaFile(areaListFile);
 		dataStore.setAreas(areas);
 		dataStore.setNumPeriods(lastPeriodID);
-			
+		
+		
+		
 		BufferedReader reader = new BufferedReader(new FileReader(dataFile));
 		try {
-			readHeader(reader);			
+			readHeader(reader);		
+			validateTargetConstraints(targetConstraints);
 			while (true) {
 				String line = reader.readLine();
 				if (line == null) {break;}
 				String[] data = line.split("\\|");
-				loadRow(dataStore,data);
+				loadRow(dataStore,data, targetConstraints);
 			}
 			
 		} finally {

@@ -36,8 +36,7 @@ public class FeatureWriter {
 	private int numInstances;
 	private int[] periodsToAggregateOver;
 	private  int furthestBack = 0;
-	private String targetCategoryName;
-	private String targetCategoryValue;
+	
 	private String smallestCategoryName;
 	private int periodsPerInstance;
 	private int totalCategoryLevels;
@@ -57,7 +56,7 @@ public class FeatureWriter {
 	 * @param periodsPerInstance the number of time periods that should be grouped together to create each instance.
 	 * @throws InvalidDataStoreException 
 	 */
-	public FeatureWriter(DataI data, int[] periodsBack, String targetCategoryName, String targetCategoryValue, int periodsPerInstance, boolean labelArea) throws InvalidDataStoreException {
+	public FeatureWriter(DataI data, int[] periodsBack, int periodsPerInstance, boolean labelArea) throws InvalidDataStoreException {
 		this.data = data;
 		data.validate();
 		this.labelArea = labelArea;
@@ -65,8 +64,7 @@ public class FeatureWriter {
 		if (periodsToAggregateOver.length > 0) {
 			this.furthestBack = periodsToAggregateOver[periodsToAggregateOver.length - 1];
 		}
-		this.targetCategoryName = targetCategoryName;
-		this.targetCategoryValue = targetCategoryValue;
+		
 		this.periodsPerInstance = periodsPerInstance;
 		
 		int id = 1;
@@ -77,14 +75,6 @@ public class FeatureWriter {
 		
 		validatePeriodsBack(periodsBack);
 		
-		if (targetCategoryName != null) {
-			Set<String> targetCategoryLevelSet = data.getLevels(targetCategoryName);
-			if (targetCategoryLevelSet == null) {
-				throw new IllegalArgumentException("Specified targetCategoryName:"+targetCategoryName+" does not exist");
-			} if (!targetCategoryLevelSet.contains(targetCategoryValue)) {
-				throw new IllegalArgumentException("Specified targetCategoryValue is not a level of specified targetCategoryName");
-			}
-		}
 		
 		numFeatures = 0;
 		int numAreasTimeNumPeriods =  periodsToAggregateOver.length*data.getHierachy().depth();// * numAreas;
@@ -139,17 +129,18 @@ public class FeatureWriter {
 	
 	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area on the specified day ***/
 	private int calculateSinglePeriodTarget(int period, int targetArea) {
-		if (targetCategoryName == null) {
-			int total = 0;
-			for (String level: data.getLevels(smallestCategoryName)) {
-				CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, smallestCategoryName, level);
-				total += data.getCount(key, period);
-			}
-			return total;
-		} else {
-			CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, targetCategoryName, targetCategoryValue);
-			return data.getCount(key, period);
-		}
+		return data.getTarget(targetArea, period);
+//		if (targetCategoryName == null) {
+//			int total = 0;
+//			for (String level: data.getLevels(smallestCategoryName)) {
+//				CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, smallestCategoryName, level);
+//				total += data.getCount(key, period);
+//			}
+//			return total;
+//		} else {
+//			CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, targetCategoryName, targetCategoryValue);
+//			return data.getCount(key, period);
+//		}
 	}
 	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area for the days from period to period + periodsPerInstance ***/
 	private float calculateTarget(int period, int target) {
@@ -176,9 +167,13 @@ public class FeatureWriter {
 			throw new IllegalArgumentException("train + validation percentage must be <= 1");
 		}
 		BufferedWriter[] writers = new BufferedWriter[3];
+		BufferedWriter[] targetWriters = new BufferedWriter[3];
 		for (int indx = 0; indx < 3; indx ++) {
 			writers[indx] = new BufferedWriter(new FileWriter(path+filename+DATA_PARTITIONS[indx]));
+			targetWriters[indx] = new BufferedWriter(new FileWriter(path+filename+DATA_PARTITIONS[indx]+".target"));
 		}
+		
+		
 		int[] boundaries = {(int)Math.floor(trainPercentage*instanceTimewindows), (int)Math.floor((trainPercentage+validatePercentage)*instanceTimewindows),instanceTimewindows};
 		
 		Instance instance = null;
@@ -199,6 +194,7 @@ public class FeatureWriter {
 		int windowsCount = 0;
 		int dataPartion = 0;
 		BufferedWriter writer = writers[dataPartion];
+		BufferedWriter targetWriter = targetWriters[dataPartion];
 		int periodBoundary = boundaries[dataPartion];
 		instance.setWriter(writer,numColumns);
 		float targetTotal = 0f;
@@ -206,12 +202,15 @@ public class FeatureWriter {
 			if (windowsCount >= periodBoundary) {
 				dataPartion ++;
 				writer = writers[dataPartion];
+				targetWriter = targetWriters[dataPartion];
 				periodBoundary = boundaries[dataPartion];
 				instance.finishWriter();
 				instance.setWriter(writer,numColumns);
 			}
 			for (int area: data.getAreas()) {
 				float target = calculateTarget(period, area);
+				targetWriter.write(Float.toString(target));
+				targetWriter.newLine();
 				targetTotal += target;
 				instance.setTarget(target);
 				buildAndWriteFeatures(period,area,instance,writer,labelArea);

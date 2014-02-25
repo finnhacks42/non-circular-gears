@@ -13,22 +13,28 @@ public class Main {
 	public static void main(String[] args) throws IOException, InvalidDataStoreException {
 		DataLoader loader = new DataLoader();
 		String path = "/home/finn/phd/data/20140220/";
-		String dataFile = path + "events200debug.txt";
-		String areaFile = path + "cells200debug.txt";
+		String dataFile = path + "events200_all.txt";
+		String areaFile = path + "cells200.txt";
 		
 		DataI data = new Data();
 		
-		loader.load(dataFile, areaFile,2556, data);
+		loader.load(dataFile, areaFile,2556, data, "crime","burglary","prem","RESIDENCE");
+		
 		System.out.println("DATA LOADED");
+		System.out.println("TARGET TOTAL:"+data.getTargetTotal());
+		data.checkConsistency();
+		System.out.println("Data consistant");
+		
 		
 		int[] daysback = {7,365};
 		int reportFrequency = 100000;
-		double trainPer = 1;//4/6d; // % of the data for training
-		double validPer = 0;//1/6d; // % of the data for validation - remaining % will be test
-		String outputName = "debug";
+		double trainPer = 4/6d; // % of the data for training
+		double validPer = 1/6d; // % of the data for validation - remaining % will be test
+		String outputName = "VW200";
 		boolean labelArea = true;
 		
-		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,"crime","burglary",1,labelArea);
+		//what if I need to specify multiple constraints on the target (ie crime = 'burglary', place = 'residence')
+		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,1,labelArea);
 		featureGenerator.setReportFrequency(reportFrequency);
 		
 		System.out.println(featureGenerator);

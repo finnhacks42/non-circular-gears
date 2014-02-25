@@ -52,7 +52,16 @@ public interface DataI {
 	/*** can be called to validate the current store is in a valid state to start returning counts. 
 	 * @throws InvalidDataStoreException ***/
 	public abstract void validate() throws InvalidDataStoreException;
-		
 	
+	public void checkConsistency() throws InvalidDataStoreException;
+	
+	/*** set the target variable for a given area and period. ***/
+	public void incrementTarget(int area, int period);
+		
+	/*** get the target variable for a given area and period. ***/
+	public int getTarget(int area, int period);
+	
+	/*** get the sum of the targets across all areas and periods. ***/
+	public int getTargetTotal();
 
 }
