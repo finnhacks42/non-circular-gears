@@ -39,22 +39,45 @@ public class DataLoader {
 	private int numCategories;
 	private Map<String,Integer> categoryNameToIndex = new HashMap<String,Integer>(); //maps from the name of a category column to its column index
 	private Counter<Integer> periodCounts = new Counter<Integer>();
-	private Map<String, Integer> nameToIndx = new HashMap<String,Integer>(); //maps column names to column indx.
-	private Map<String,Integer> areaToIndx = new HashMap<String,Integer>(); //maps additional area columns to their indexes.
+	private Map<String, Integer> nameToIndx = new HashMap<String,Integer>(); //maps all column names to column indx.
+	private Map<String,Integer> areaToIndx = new HashMap<String,Integer>(); //maps area columns to their indexes.
 
 	
 	/*** reads a file where each line is an integer specifying an areaID that may occur in the dataset. ***/
-	private List<Integer> readAreaFile(String areaListFile) throws IOException {
+	private LocationHierachy readAreaFile(String areaListFile) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(areaListFile));
-		ArrayList<Integer> result = new ArrayList<Integer>();
+		LocationHierachy hierachy = new LocationHierachy();
+		String headerLine = reader.readLine();
+		String[] header = headerLine.split("\\|");
+		
+		int areaIndx = -1;
+		for (int i = 0; i < header.length; i ++) {
+			String h = header[i];
+			h = h.trim();
+			header[i] = h;
+			if (DataLoader.AREA.equals(h)){
+				areaIndx = i;
+			}
+		}
+		if (areaIndx < 0) {
+			reader.close();
+			throw new IllegalArgumentException("area column not found in area file");
+		}
+		
 		while (true) {
 			String line = reader.readLine();
 			if (line == null) {break;}
-			int area = Integer.valueOf(line);
-			result.add(area);
+			String[] row = line.trim().split("\\|");
+			int area = Integer.valueOf(areaIndx);
+			for (int i = 0; i < header.length; i ++) {
+				String areaNS = header[i];
+				int parentArea = Integer.valueOf(row[i]);
+				hierachy.add(area, parentArea, areaNS);
+			}
+			
 		}
 		reader.close();
-		return result;
+		return hierachy;
 	}
 	
 	
@@ -122,14 +145,13 @@ public class DataLoader {
 	}
 	
 	private void loadRow(DataI dataStore, String[] data, String ... targetConstraints) {
-		//System.out.println("Loading row: "+Arrays.toString(data));
 		int period = Integer.valueOf(data[nameToIndx.get(PERIOD)]);
 		int area = Integer.valueOf(data[nameToIndx.get(AREA)]);
 		
 		periodCounts.increment(period);
 		
-		if (!dataStore.getAreas().contains(area)) {
-			throw new IllegalArgumentException("Area "+area+" encountered in data but not in area list");
+		if (!dataStore.getHierachy().getAreaIDs(DataLoader.AREA).contains(area)) {
+			throw new IllegalArgumentException("Area "+area+" encountered in data but not in hierachy");
 		}
 		
 		// check if event matches target.
@@ -137,13 +159,16 @@ public class DataLoader {
 			dataStore.incrementTarget(area, period);
 		}
 		
-		
-		// add the area and parent(s) to the location hierachy
-		for (Entry<String,Integer> a: areaToIndx.entrySet()) {
-			String areaNamespace = a.getKey();
-			int areaID = Integer.valueOf(data[areaToIndx.get(areaNamespace)]);
-			dataStore.getHierachy().add(area, areaID, a.getKey());	
-		}
+//		
+//		// add the area and parent(s) to the location hierachy
+//		for (Entry<String,Integer> a: areaToIndx.entrySet()) {
+//			String areaNamespace = a.getKey();
+//			int areaID = Integer.valueOf(data[areaToIndx.get(areaNamespace)]);
+//			if ("area".equals(areaNamespace)&& areaID > 1710 && areaID < 1720){
+//				System.out.println(areaNamespace+","+area);
+//			}
+//			dataStore.getHierachy().add(area, areaID, a.getKey());	
+//		}
 		
 		
 		for (Entry<String,Integer> c : categoryNameToIndex.entrySet()) {
@@ -168,16 +193,15 @@ public class DataLoader {
 	/*** load data from a file. Periods are assumed to begin at 0. ***/
 	
 	public void load(String dataFile, String areaListFile, int lastPeriodID, DataI dataStore, String ... targetConstraints) throws IOException {
-		List<Integer> areas = readAreaFile(areaListFile);
-		dataStore.setAreas(areas);
+		LocationHierachy hierarchy = readAreaFile(areaListFile);
+		dataStore.setHierachy(hierarchy);
 		dataStore.setNumPeriods(lastPeriodID);
-		
-		
 		
 		BufferedReader reader = new BufferedReader(new FileReader(dataFile));
 		try {
 			readHeader(reader);		
 			validateTargetConstraints(targetConstraints);
+			
 			while (true) {
 				String line = reader.readLine();
 				if (line == null) {break;}
@@ -193,12 +217,12 @@ public class DataLoader {
 	
 	/*** load the data from memory. Useful for generating test instances of the Data object. ***/
 	public void load(List<String[]> rows, String[] header, int[] areas, int lastPeriodID,DataI dataStore) {
-		List<Integer> areaList = new ArrayList<Integer>();
-		for (int a: areas) {
-			areaList.add(a);
+		LocationHierachy hierachy = new LocationHierachy();
+		for (int area: areas) {
+			hierachy.add(area, area, DataLoader.AREA);
 		}
 		
-		dataStore.setAreas(areaList);
+		dataStore.setHierachy(hierachy);
 		dataStore.setNumPeriods(lastPeriodID);
 		
 		readHeader(header);

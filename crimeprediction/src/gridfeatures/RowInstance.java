@@ -13,7 +13,7 @@ public class RowInstance implements Instance {
 	private boolean includeArea;
 	private BufferedWriter writer;
 	
-	public RowInstance(String[] header, boolean includeArea) {
+	public RowInstance(String[] header, String[] areasToLabel) {
 		this.header = header;
 		this.features = new float[header.length];
 		this.includeArea = includeArea;

@@ -10,16 +10,14 @@ import java.util.Set;
 public abstract class DataA implements DataI {
 	
 	private int maxPeriod;
-	private List<Integer> areas;
 	private Map<String,Set<String>> categoryNameToLevels = new HashMap<String,Set<String>>();
-	private LocationHierachy heirachy = new LocationHierachy();
+	private LocationHierachy heirachy;
 	private Map<IntTuple, Integer> targets = new HashMap<IntTuple,Integer>();
 	
 	public DataA() {};
 
 	public DataA(int numPeriods, List<Integer> areas){
 		this.maxPeriod = numPeriods;
-		this.areas = areas;
 	}
 	
 	@Override
@@ -135,10 +133,7 @@ public abstract class DataA implements DataI {
 		return maxPeriod;
 	}
 	
-	@Override
-	public List<Integer> getAreas(){
-		return areas;
-	}
+	
 	
 	@Override
 	public Collection<String> getCategories(){
@@ -156,18 +151,16 @@ public abstract class DataA implements DataI {
 		categoryNameToLevels.put(category, levels);
 	}
 	
+	@Override
+	public void setHierachy(LocationHierachy hierachy) {
+		this.heirachy = hierachy;
+		
+	}
 	
 	@Override
 	public LocationHierachy getHierachy() {
 		return this.heirachy;
 	}
-
-
-	@Override
-	public void setAreas(List<Integer> areas) {
-		this.areas = areas;
-	}
-
 
 
 	@Override
@@ -178,9 +171,6 @@ public abstract class DataA implements DataI {
 	
 	@Override
 	public void validate() throws InvalidDataStoreException {
-		if (areas == null) {
-			throw new InvalidDataStoreException("Possible areas in which crime could occur must be specified");
-		}
 		
 		if (this.maxPeriod <= 0) {
 			throw new InvalidDataStoreException("The number of periods for the data must be set and > 0");

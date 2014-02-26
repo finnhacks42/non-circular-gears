@@ -29,9 +29,6 @@ public interface DataI {
 	/*** get the number of temporal periods in the data. ***/
 	public abstract int getNumPeroids();
 
-	/*** get all the areas in which crime could occur in the data. ***/
-	public abstract List<Integer> getAreas();
-
 	/*** return a list of the names of all the categories the data is broken down by. ***/
 	public abstract Collection<String> getCategories();
 
@@ -41,10 +38,10 @@ public interface DataI {
 	/*** Set the levels for a given category. If the category does not already exist it will be created. Should be set before any counts are calculated. ***/
 	public abstract void setLevels(String category, Set<String> levels);
 
+	/*** The location hierachy maps the lowest level areas to its parents in all namespaces (including its own). ***/
 	public abstract LocationHierachy getHierachy();
 	
-	/*** set the areas in which crime could possibly occur. Should be set once, before any counts are calculated. ***/
-	public abstract void setAreas(List<Integer> areas);
+	public abstract void setHierachy(LocationHierachy hierachy);
 	
 	/*** set the number of the last period in the data set. (The first period is assumed to be 0. Should be set once, before any counts are calculated.***/
 	public abstract void setNumPeriods(int numPeriods);

@@ -4,12 +4,9 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import utilities.AU;
 
 
 /*** This class generates and writes out a sparse representation of the features. ***/
@@ -42,9 +39,34 @@ public class FeatureWriter {
 	private int totalCategoryLevels;
 	private int reportFrequency = -1;
 	private int instanceTimewindows;
-	private boolean labelArea = true;
-	private Map<Integer,Integer> areaToAreaID = new HashMap<Integer,Integer>(); //maps the areas to a unique id between 1 and num_areas
+	//private boolean labelArea = true;
+	private Map<String, Integer> areasToIDs;
+	private String[] areasToLabel;
 	
+	
+	/*** relables each area with an id that is unique accross all namespaces such that it can be used as a feature ID
+	 * 
+	 * @param areaNS
+	 * @param areaID
+	 * @return an id unique across all labled area namespaces, such that it can be used as a featureID. Ranges from 1 to number of areas to be labeled in total.
+	 */
+	private int getAreaID(String areaNS, int areaID) {
+		String key = areaNS+areaID;
+		return areasToIDs.get(key);
+	}
+	
+	private Map<String,Integer> buildAreaIDs(String[] areasToLabel) {
+		Map<String,Integer> result = new HashMap<String,Integer>();
+		int id = 1;
+		for (String namespace: areasToLabel) {
+			for (int area: data.getHierachy().getAreaIDs(namespace)){
+				String key = namespace+area;
+				result.put(key, id);
+				id ++;
+			}
+		}
+		return result;
+	}
 	
 	/*** 
 	 * 
@@ -56,25 +78,21 @@ public class FeatureWriter {
 	 * @param periodsPerInstance the number of time periods that should be grouped together to create each instance.
 	 * @throws InvalidDataStoreException 
 	 */
-	public FeatureWriter(DataI data, int[] periodsBack, int periodsPerInstance, boolean labelArea) throws InvalidDataStoreException {
+	public FeatureWriter(DataI data, int[] periodsBack, int periodsPerInstance, String[] areasToLabel) throws InvalidDataStoreException {
 		this.data = data;
 		data.validate();
-		this.labelArea = labelArea;
+		
+		this.areasToLabel = areasToLabel;
 		this.periodsToAggregateOver = periodsBack;
 		if (periodsToAggregateOver.length > 0) {
 			this.furthestBack = periodsToAggregateOver[periodsToAggregateOver.length - 1];
 		}
 		
 		this.periodsPerInstance = periodsPerInstance;
-		
-		int id = 1;
-		for (Integer area: data.getAreas()) {
-			areaToAreaID.put(area, id);
-			id ++;
-		}
-		
 		validatePeriodsBack(periodsBack);
 		
+		validateAreasToLabel(areasToLabel);
+		this.areasToIDs = buildAreaIDs(areasToLabel);
 		
 		numFeatures = 0;
 		int numAreasTimeNumPeriods =  periodsToAggregateOver.length*data.getHierachy().depth();// * numAreas;
@@ -91,7 +109,7 @@ public class FeatureWriter {
 			System.out.println("Category:"+category+" levels:"+numLevels);
 		}
 		instanceTimewindows = (int) (Math.floor((data.getNumPeroids() - furthestBack)/((float)periodsPerInstance)));
-		numInstances = instanceTimewindows * data.getAreas().size();
+		numInstances = instanceTimewindows * data.getHierachy().size(DataLoader.AREA);
 		
 	}
 	
@@ -115,7 +133,7 @@ public class FeatureWriter {
 		b.append(", Output periods:").append(data.getNumPeroids()-furthestBack);
 		b.append(", Periods/instance:").append(periodsPerInstance);
 		b.append("\n");
-		b.append("Target Areas:").append(data.getAreas().size());
+		b.append("Target Areas:").append(data.getHierachy().size(DataLoader.AREA));
 		b.append(", Instance timewindows:").append(instanceTimewindows);
 		b.append(", INSTANCES:").append(numInstances);
 		b.append("\n");
@@ -130,18 +148,9 @@ public class FeatureWriter {
 	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area on the specified day ***/
 	private int calculateSinglePeriodTarget(int period, int targetArea) {
 		return data.getTarget(targetArea, period);
-//		if (targetCategoryName == null) {
-//			int total = 0;
-//			for (String level: data.getLevels(smallestCategoryName)) {
-//				CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, smallestCategoryName, level);
-//				total += data.getCount(key, period);
-//			}
-//			return total;
-//		} else {
-//			CrimeKey key = new CrimeKey(DataLoader.AREA,targetArea, targetCategoryName, targetCategoryValue);
-//			return data.getCount(key, period);
-//		}
 	}
+	
+	
 	/*** returns the crime count as broken down by targetCategoryName/Value in the specified area for the days from period to period + periodsPerInstance ***/
 	private float calculateTarget(int period, int target) {
 		int count = 0;
@@ -187,8 +196,8 @@ public class FeatureWriter {
 			throw new IllegalArgumentException("Unknown format requested");
 		}
 		
+		int numColumns = areasToIDs.size() + numFeatures + 1; // note + 1 is for target variable, this is the number of columns that would exist if each area under each namespace is coded via the dummy variable method
 		
-		int numColumns = labelArea ? data.getAreas().size() + numFeatures + 1: numFeatures + 1; //note +1 is for the target variable
 		
 		int count = 0;
 		int windowsCount = 0;
@@ -207,13 +216,13 @@ public class FeatureWriter {
 				instance.finishWriter();
 				instance.setWriter(writer,numColumns);
 			}
-			for (int area: data.getAreas()) {
+			for (int area: data.getHierachy().getAreaIDs(DataLoader.AREA)) {
 				float target = calculateTarget(period, area);
 				targetWriter.write(Float.toString(target));
 				targetWriter.newLine();
 				targetTotal += target;
 				instance.setTarget(target);
-				buildAndWriteFeatures(period,area,instance,writer,labelArea);
+				buildAndWriteFeatures(period,area,instance,writer);
 				instance.endInstanceAndclear();
 				count ++;
 				if (reportFrequency > 0 && count % reportFrequency == 0) {
@@ -232,18 +241,13 @@ public class FeatureWriter {
 	
 	
 	private RowInstance rowInstance() {
-		String[] header = null;
-	
-		int indx = 0;
-		if (labelArea) {
-			header = new String[numFeatures + 2];
-			header[1] = "area";
-			indx = 2;
-		} else {
-			header = new String[numFeatures + 1];
-			indx = 1;
-		}
+		String[] header = new String[areasToLabel.length+numFeatures+1];
 		header[0]="target";
+		int indx = 1;
+		for (String areaNS: areasToLabel) {
+			header[indx] = areaNS;
+		}
+			
 		LocationHierachy hierachy = data.getHierachy();
 		
 		for (String areaAggregation: hierachy.getNameSpaces()) {
@@ -259,23 +263,48 @@ public class FeatureWriter {
 			}
 		}
 		
-		return new RowInstance(header,this.labelArea);
+		return new RowInstance(header,areasToLabel);
 	}
 	
 	
+	private void validateAreasToLabel(String[] areasToLabel){
+		if (areasToLabel == null) {throw new IllegalArgumentException("Areas to label must be specified. If no area labling is desired, pass an empty string");}
+		for (String areaNS: areasToLabel) {
+			if (!data.getHierachy().getNameSpaces().contains(areaNS)){
+				throw new IllegalArgumentException("Unknown area namespace: "+areaNS);
+			}
+		}
+	}
+	
 	/*** build features for the specific instance specified by a period area combination. 
 	 * @throws IOException ***/
-	private void buildAndWriteFeatures(int period, int targetArea, Instance instance, BufferedWriter writer, boolean labelArea) throws IOException{
+	private void buildAndWriteFeatures(int period, int targetArea, Instance instance, BufferedWriter writer) throws IOException{
 		LocationHierachy hierachy = data.getHierachy();	
+		System.out.println(hierachy.getNameSpaces());
+		
+		
 		int featureID = 1;
-		if (labelArea) {
-			if (labelArea) {
-				instance.setNamespace(DataLoader.AREA);
-				int areaID = areaToAreaID.get(targetArea);
-				instance.addFeature(areaID, 1);
+		
+		for (String areaNS: areasToLabel) {
+			instance.setNamespace(areaNS);
+			Integer area = hierachy.getTargetAreaParent(areaNS, targetArea);
+			if (area == null) { // this will be true if we have not seen the area in the data set - so we won't know what parent it should have
+				Collection<Integer> idsFound = hierachy.getAreaIDs(areaNS);
+				System.out.println(hierachy.getAreaIDs(areaNS).contains(targetArea));
+				System.out.println(idsFound.size());
+				for (Integer id: idsFound) {
+					if (id - targetArea < 10) {
+						System.out.println("Found:"+id);
+					}
+				}
+				throw new IllegalStateException("Area:"+targetArea+" not found within namespace:"+areaNS);
 			}
-			featureID += areaToAreaID.size();
+			int areaID = getAreaID(areaNS, area);
+			instance.addFeature(areaID, 1);
 		}
+		
+		featureID += areasToIDs.size();
+		
 		
 		for (String areaAggregation: hierachy.getNameSpaces()) {
 			Integer area = hierachy.getTargetAreaParent(areaAggregation, targetArea);
@@ -298,32 +327,7 @@ public class FeatureWriter {
 	}
 	
 	
-	/*** built the features for a specific instance specified by a peroid/area combination. 
-	 * Features consist of;
-	 * for each category, amount of crime for each level of that cateogory, in each other area (ordered by distance to this one) in each of the specified number of days back.
-	 * Ordering of features:
-	 * features for the closest area are returned first, followed by the 2nd closest etc.
-	 */
-	private float[] buildFeatures(int period, int targetArea) {
-		float[] result = new float[numFeatures];
-		int indx = 0;
-		LocationHierachy hierachy = data.getHierachy();
-		
-		for (String areaNameSpace: hierachy.getNameSpaces()){
-			Integer area = hierachy.getTargetAreaParent(areaNameSpace, targetArea);
-			if (area == null) {
-				return result;
-			}
-			for (String category: data.getCategories()){
-				for (String level: data.getLevels(category)) {
-					CrimeKey key = new CrimeKey(areaNameSpace, area, category, level);
-					float [] featureSubset = data.calculateNormalizedCounts(key, period, periodsToAggregateOver);
-					indx = AU.arrayInsert(featureSubset, result, indx);
-				}
-			}
-		}
-		return result;
-	}
+	
 	
 	
 	

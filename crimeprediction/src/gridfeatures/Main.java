@@ -13,8 +13,8 @@ public class Main {
 	public static void main(String[] args) throws IOException, InvalidDataStoreException {
 		DataLoader loader = new DataLoader();
 		String path = "/home/finn/phd/data/20140220/";
-		String dataFile = path + "events200_all.txt";
-		String areaFile = path + "cells200.txt";
+		String dataFile = path + "events1000_all.txt";
+		String areaFile = path + "cells1000.txt";
 		
 		DataI data = new Data();
 		
@@ -22,19 +22,21 @@ public class Main {
 		
 		System.out.println("DATA LOADED");
 		System.out.println("TARGET TOTAL:"+data.getTargetTotal());
-		data.checkConsistency();
-		System.out.println("Data consistant");
+		//data.checkConsistency();
+		//System.out.println("Data consistant");
 		
 		
 		int[] daysback = {7,365};
 		int reportFrequency = 100000;
 		double trainPer = 4/6d; // % of the data for training
 		double validPer = 1/6d; // % of the data for validation - remaining % will be test
-		String outputName = "VW200";
-		boolean labelArea = true;
+		String outputName = "VW1kag";
+	
+		
+		String[] areasToLabel = {"area","area5000"}; 
 		
 		//what if I need to specify multiple constraints on the target (ie crime = 'burglary', place = 'residence')
-		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,1,labelArea);
+		FeatureWriter featureGenerator = new FeatureWriter(data,daysback,1,areasToLabel);
 		featureGenerator.setReportFrequency(reportFrequency);
 		
 		System.out.println(featureGenerator);
