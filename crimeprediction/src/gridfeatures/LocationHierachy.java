@@ -18,6 +18,7 @@ public class LocationHierachy {
 	private Map<LocationKey,Integer> hierachy = new HashMap<LocationKey,Integer>();
 	private Map<String,Set<Integer>> namespaces = new HashMap<String,Set<Integer>>(); // maps from each namespace to a list of the elements in that namespace.
 	
+	
 	/*** Creates a location hierachy by assuming that the ids of the areas specify what their parents are
 	 * For example if the ids are 123, 145, 235 and 2 namespaces are requested, then it is assumed that 123 has parent 1 in 0th NS and parent 2 in 1th namespace.
 	 * @param areas
@@ -47,6 +48,7 @@ public class LocationHierachy {
 	 * @param the containing area of this targetArea in the given namespace
 	 * @param the namespace/level of aggregation of the parent area ID.***/
 	public void add(int targetArea, int parentArea, String parentNamespace) {
+		
 		LocationKey key = new LocationKey(targetArea, parentNamespace);
 		hierachy.put(key, parentArea);
 		

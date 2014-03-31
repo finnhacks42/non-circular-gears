@@ -68,10 +68,11 @@ public class DataLoader {
 			String line = reader.readLine();
 			if (line == null) {break;}
 			String[] row = line.trim().split("\\|");
-			int area = Integer.valueOf(areaIndx);
+			int area = Integer.valueOf(row[areaIndx]);
 			for (int i = 0; i < header.length; i ++) {
 				String areaNS = header[i];
 				int parentArea = Integer.valueOf(row[i]);
+				
 				hierachy.add(area, parentArea, areaNS);
 			}
 			
@@ -117,7 +118,6 @@ public class DataLoader {
 		if (targetConstraints.length % 2 != 0) {
 			throw new IllegalArgumentException("constraints must be specified in category, value pairs");
 		}
-		System.out.println(Arrays.toString(targetConstraints));
 		for (int i = 0; i < targetConstraints.length-1; i+=2) {
 			String category = targetConstraints[i];
 			if (!categoryNameToIndex.containsKey(category)){

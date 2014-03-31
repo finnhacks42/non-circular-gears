@@ -100,13 +100,14 @@ public class FeatureWriter {
 		totalCategoryLevels = 0;
 		for (String category: data.getCategories()){
 			int numLevels = data.getLevels(category).size();
+			System.out.println("Category:"+category+", levels:"+numLevels);
 			totalCategoryLevels += numLevels;
 			if (numLevels < leastLevels) {
 				leastLevels = numLevels;
 				smallestCategoryName = category;
 			}
 			numFeatures += numLevels * numAreasTimeNumPeriods;
-			System.out.println("Category:"+category+" levels:"+numLevels);
+			
 		}
 		instanceTimewindows = (int) (Math.floor((data.getNumPeroids() - furthestBack)/((float)periodsPerInstance)));
 		numInstances = instanceTimewindows * data.getHierachy().size(DataLoader.AREA);
@@ -280,7 +281,6 @@ public class FeatureWriter {
 	 * @throws IOException ***/
 	private void buildAndWriteFeatures(int period, int targetArea, Instance instance, BufferedWriter writer) throws IOException{
 		LocationHierachy hierachy = data.getHierachy();	
-		System.out.println(hierachy.getNameSpaces());
 		
 		
 		int featureID = 1;
@@ -289,14 +289,6 @@ public class FeatureWriter {
 			instance.setNamespace(areaNS);
 			Integer area = hierachy.getTargetAreaParent(areaNS, targetArea);
 			if (area == null) { // this will be true if we have not seen the area in the data set - so we won't know what parent it should have
-				Collection<Integer> idsFound = hierachy.getAreaIDs(areaNS);
-				System.out.println(hierachy.getAreaIDs(areaNS).contains(targetArea));
-				System.out.println(idsFound.size());
-				for (Integer id: idsFound) {
-					if (id - targetArea < 10) {
-						System.out.println("Found:"+id);
-					}
-				}
 				throw new IllegalStateException("Area:"+targetArea+" not found within namespace:"+areaNS);
 			}
 			int areaID = getAreaID(areaNS, area);
